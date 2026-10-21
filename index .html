@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Илья собирает бутылки</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    background: #171727;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 12px;
+}
+h1 { color: lime; font-size: clamp(20px, 4vw, 30px); }
+#game {
+    display: block;
+    width: min(800px, 95vw);
+    height: auto;
+    aspect-ratio: 8 / 5;
+    background: #263448;
+    border: 3px solid lime;
+    margin: 15px auto;
+}
+button {
+    padding: 12px 20px;
+    font-size: 17px;
+    cursor: pointer;
+    margin: 8px;
+    border: none;
+    border-radius: 8px;
+}
+#message { color: orange; font-size: 21px; font-weight: bold; }
+#score, #speed { margin: 8px; }
+</style>
+</head>
+<body>
+<h1>🎮 ИЛЬЯ СОБИРАЕТ БУТЫЛКИ 🍾</h1>
+<h2 id="score">Собрано бутылок: 0</h2>
+<h3 id="speed">Скорость Ильи: 5</h3>
+<canvas id="game" width="800" height="500"></canvas>
+<p>Управление: стрелки клавиатуры ⬆️⬇️⬅️➡️</p>
+<p id="message"></p>
+<button onclick="restart()">🔄 Начать заново</button>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const normalImg = new Image();
+normalImg.src = "./player.jpg";
+const fastImg = new Image();
+fastImg.src = "./player2.jpg";
+
+const normalSound = new Audio("./bottle.ogg");
+normalSound.volume = 0.2;
+const specialSound = new Audio("./bottle10.ogg");
+specialSound.volume = 0.2;
+
+const playerSize = 70;
+const bottleSize = 30;
+let x = 100, y = 100;
+let bottleX = 300, bottleY = 200;
+let score = 0, speed = 5, direction = "right";
+let gameOver = false, redness = 0, swearingEnabled = true;
+let timer = null;
+let keys = {};
+
+normalImg.onload = draw;
+fastImg.onload = draw;
+normalImg.onerror = function() { console.error("Не удалось загрузить player.jpg"); };
+fastImg.onerror = function() { console.error("Не удалось загрузить player2.jpg"); };
+
+function updateMessage() {
+    const message = document.getElementById("message");
+    if (gameOver) {
+        message.textContent = swearingEnabled
+            ? "💥 ИЛЮХА РАЗЪЕБАЛСЯ! Бутылок: " + score
+            : "💥 ИЛЬЯ ПРОИГРАЛ! Бутылок: " + score;
+    } else {
+        message.textContent = swearingEnabled
+            ? "НЕ ДАЙ ИЛЮХЕ РАЗЪЕБАТЬСЯ 💀"
+            : "НЕ ДАЙ ИЛЬЕ ПРОИГРАТЬ!";
+    }
+}
+
+document.addEventListener("keydown", function(e) {
+    if (e.ctrlKey && e.shiftKey && (e.code === "KeyM" || e.key.toLowerCase() === "m")) {
+        e.preventDefault();
+        if (!e.repeat) {
+            swearingEnabled = !swearingEnabled;
+            updateMessage();
+        }
+        return;
+    }
+    const key = e.key.toLowerCase();
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+        keys[key] = true;
+        e.preventDefault();
+    }
+});
+document.addEventListener("keyup", function(e) {
+    keys[e.key.toLowerCase()] = false;
+});
+
+function newBottle() {
+    let attempts = 0;
+    do {
+        bottleX = Math.floor(Math.random() * 37) * 20 + 20;
+        bottleY = Math.floor(Math.random() * 22) * 20 + 20;
+        attempts++;
+    } while (
+        attempts < 100 &&
+        x < bottleX + bottleSize && x + playerSize > bottleX &&
+        y < bottleY + bottleSize && y + playerSize > bottleY
+    );
+}
+
+function restart() {
+    clearInterval(timer);
+    x = 100; y = 100;
+    score = 0; speed = 5; direction = "right"; redness = 0;
+    keys = {}; gameOver = false;
+    document.getElementById("score").textContent = "Собрано бутылок: 0";
+    document.getElementById("speed").textContent = "Скорость Ильи: 5";
+    updateMessage();
+    newBottle();
+    draw();
+    timer = setInterval(update, 30);
+}
+
+function update() {
+    if (gameOver) return;
+    if (keys["arrowup"]) direction = "up";
+    else if (keys["arrowdown"]) direction = "down";
+    else if (keys["arrowleft"]) direction = "left";
+    else if (keys["arrowright"]) direction = "right";
+
+    let nextX = x, nextY = y;
+    if (direction === "up") nextY -= speed;
+    if (direction === "down") nextY += speed;
+    if (direction === "left") nextX -= speed;
+    if (direction === "right") nextX += speed;
+
+    if (nextX < 0 || nextY < 0 ||
+        nextX + playerSize > canvas.width ||
+        nextY + playerSize > canvas.height) {
+        loseGame();
+        return;
+    }
+
+    x = nextX; y = nextY;
+
+    if (x < bottleX + bottleSize && x + playerSize > bottleX &&
+        y < bottleY + bottleSize && y + playerSize > bottleY) {
+        score++;
+        const sound = score >= 10 ? specialSound : normalSound;
+        sound.currentTime = 0;
+        sound.play().catch(function() {});
+
+        speed = Math.min(5 + score * 0.7, 14);
+        redness = speed >= 12 ? 0 : Math.min(score * 0.06, 0.7);
+        document.getElementById("score").textContent = "Собрано бутылок: " + score;
+        document.getElementById("speed").textContent = "Скорость Ильи: " + speed.toFixed(1);
+        newBottle();
+    }
+    draw();
+}
+
+function loseGame() {
+    gameOver = true;
+    clearInterval(timer);
+    updateMessage();
+    draw();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "30px Arial";
+    ctx.fillText("🍾", bottleX, bottleY + 25);
+
+    let currentImg = speed >= 12 ? fastImg : normalImg;
+    if (!currentImg.complete || currentImg.naturalWidth === 0) {
+        currentImg = normalImg;
+    }
+
+    if (currentImg.complete && currentImg.naturalWidth > 0) {
+        ctx.drawImage(currentImg, x, y, playerSize, playerSize);
+        if (redness > 0 && speed < 12) {
+            ctx.save();
+            ctx.globalCompositeOperation = "source-atop";
+            ctx.fillStyle = "rgba(255, 0, 0, " + redness + ")";
+            ctx.fillRect(x, y, playerSize, playerSize);
+            ctx.restore();
+        }
+    } else {
+        ctx.fillStyle = "lime";
+        ctx.fillRect(x, y, playerSize, playerSize);
+        ctx.fillStyle = "black";
+        ctx.font = "14px Arial";
+        ctx.fillText("ИЛЬЯ", x + 10, y + 40);
+    }
+
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillRect(0, 170, canvas.width, 150);
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.font = "bold 34px Arial";
+        ctx.fillText("ИГРА ОКОНЧЕНА!", canvas.width / 2, 225);
+        ctx.font = "26px Arial";
+        ctx.fillText("Бутылок: " + score, canvas.width / 2, 270);
+        ctx.textAlign = "start";
+    }
+}
+
+updateMessage();
+restart();
+</script>
+</body>
+</html>
