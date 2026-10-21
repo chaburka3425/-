@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Илья собирает бутылки</title>
+<title>Собираем бутылки</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 * { box-sizing: border-box; }
 body {
@@ -15,14 +16,20 @@ body {
     padding: 12px;
 }
 h1 { color: lime; font-size: clamp(20px, 4vw, 30px); }
+#score, #speed, #best { margin: 8px; }
+#wrap {
+    position: relative;
+    width: min(1200px, 95vw, max(480px, calc((100vh - 220px) * 1.6)));
+    margin: 15px auto;
+    border: 3px solid lime;
+    background: #263448;
+    line-height: 0;
+}
 #game {
     display: block;
-    width: min(800px, 95vw);
+    width: 100%;
     height: auto;
-    aspect-ratio: 8 / 5;
-    background: #263448;
-    border: 3px solid lime;
-    margin: 15px auto;
+    touch-action: none;
 }
 button {
     padding: 12px 20px;
@@ -33,110 +40,1165 @@ button {
     border-radius: 8px;
 }
 #message { color: orange; font-size: 21px; font-weight: bold; }
-#score, #speed { margin: 8px; }
+
+/* Главное меню поверх поля */
+#menu {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    background: rgba(23, 23, 39, 0.95);
+    line-height: 1.3;
+    overflow-y: auto;
+}
+#menu.hidden { display: none; }
+.screen {
+    margin: auto;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(8px, 2vw, 18px);
+    padding: 12px;
+    max-width: 92%;
+}
+.screen.active { display: flex; }
+.screen h2 { color: lime; font-size: clamp(20px, 4.5vw, 42px); margin: 0 0 6px; }
+.screen p { font-size: clamp(13px, 2.2vw, 21px); margin: 0; text-align: left; }
+.menu-btn {
+    width: min(340px, 72vw);
+    margin: 0;
+    padding: clamp(6px, 1.2vw, 16px);
+    font-size: clamp(14px, 2.2vw, 25px);
+    font-weight: bold;
+    background: lime;
+    color: #171727;
+}
+.menu-btn:hover, .menu-btn:focus-visible { background: #9dff9d; outline: 2px solid white; }
+.menu-btn.secondary { background: #3a4a63; color: white; }
+.menu-btn.secondary:hover, .menu-btn.secondary:focus-visible { background: #4d6285; }
+
+#heroList { display: flex; gap: clamp(10px, 2vw, 24px); flex-wrap: wrap; justify-content: center; }
+.hero-card {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    margin: 0; padding: 10px; background: #3a4a63; color: white;
+    font-weight: bold; font-size: clamp(14px, 2.4vw, 22px);
+}
+.hero-card img {
+    width: clamp(80px, 16vw, 170px); height: clamp(80px, 16vw, 170px);
+    border-radius: 12px; object-fit: cover;
+}
+.hero-card:hover, .hero-card:focus-visible { background: #4d6285; outline: 2px solid lime; }
+
+.pick-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; font-size: clamp(13px, 2vw, 20px); }
+.hero-card.small { padding: 6px; font-size: clamp(12px, 1.8vw, 18px); }
+.hero-card.small img { width: clamp(40px, 7vw, 80px); height: clamp(40px, 7vw, 80px); }
+.hero-card.selected { outline: 3px solid lime; background: #4d6285; }
+
+#joinCode { font-size: clamp(16px, 2.4vw, 26px); width: 7em; padding: 8px; text-transform: uppercase; text-align: center; border-radius: 8px; border: 2px solid lime; background: #171727; color: white; }
+#roomCode { text-align: center; font-weight: bold; }
+#netStatus { color: orange; text-align: center; }
+#scoreTable { border-collapse: collapse; width: min(580px, 88vw); font-size: clamp(12px, 1.9vw, 20px); line-height: 1.25; }
+#scoreTable th { color: lime; text-align: left; border-bottom: 2px solid lime; padding: 4px 8px; }
+#scoreTable td { padding: 4px 8px; border-bottom: 1px solid #3a4a63; }
+#scoreTable tr.me td { background: rgba(0, 255, 0, 0.18); font-weight: bold; }
+#scoreTable td.empty { text-align: center; color: #9aa7bd; padding: 14px; }
+#manualBox { display: none; flex-direction: column; align-items: center; gap: 8px; }
+#manualBox p { font-size: clamp(12px, 1.6vw, 16px); }
+#manualBox textarea { width: min(520px, 80vw); height: 3.4em; font-size: 12px; background: #171727; color: white; border: 2px solid lime; border-radius: 8px; padding: 6px; }
+
+/* Экранные кнопки: только на сенсорных устройствах */
+#pad { display: none; }
+@media (pointer: coarse) {
+    #pad {
+        display: grid;
+        grid-template-columns: repeat(3, 64px);
+        grid-template-rows: repeat(2, 64px);
+        gap: 8px;
+        justify-content: center;
+        margin: 10px auto;
+    }
+    #pad button { margin: 0; padding: 0; font-size: 26px; touch-action: none; }
+    #pad .up { grid-column: 2; grid-row: 1; }
+    #pad .left { grid-column: 1; grid-row: 2; }
+    #pad .down { grid-column: 2; grid-row: 2; }
+    #pad .right { grid-column: 3; grid-row: 2; }
+    .desktop-only { display: none; }
+}
 </style>
 </head>
 <body>
-<h1>🎮 ИЛЬЯ СОБИРАЕТ БУТЫЛКИ 🍾</h1>
+<h1 id="title"></h1>
 <h2 id="score">Собрано бутылок: 0</h2>
-<h3 id="speed">Скорость Ильи: 5</h3>
-<canvas id="game" width="800" height="500"></canvas>
-<p>Управление: стрелки клавиатуры ⬆️⬇️⬅️➡️</p>
+<h3 id="speed"></h3>
+<h3 id="best">Рекорд: 0</h3>
+<div id="wrap">
+    <canvas id="game" width="1200" height="750"></canvas>
+
+    <div id="menu">
+        <div class="screen active" id="screen-main">
+            <h2>🎮 СОБИРАЕМ БУТЫЛКИ 🍾</h2>
+            <button class="menu-btn" id="playBtn">▶️ Играть</button>
+            <button class="menu-btn secondary" id="newGameBtn">🆕 Новая игра</button>
+            <button class="menu-btn" id="duelBtn">⚔️ Дуэль 1×1</button>
+            <button class="menu-btn" id="onlineBtn">🌐 Играть по сети</button>
+            <button class="menu-btn secondary" id="leaveBtn">🚪 Выйти из комнаты</button>
+            <button class="menu-btn" id="scoresBtn">🏆 Таблица рекордов</button>
+            <button class="menu-btn" id="settingsBtn">⚙️ Настройки</button>
+            <button class="menu-btn" id="aboutBtn">ℹ️ Об игре</button>
+        </div>
+
+        <div class="screen" id="screen-heroes">
+            <h2>Выбери героя</h2>
+            <div id="heroList"></div>
+            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
+        </div>
+
+        <div class="screen" id="screen-duel">
+            <h2>⚔️ Дуэль 1×1</h2>
+            <p>Двое за одной клавиатурой: игрок 1 — W A S D, игрок 2 — стрелки. Бутылка одна на двоих, кто врезался в стену — проиграл.</p>
+            <div id="duelPick"></div>
+            <button class="menu-btn" id="duelStartBtn">⚔️ В бой!</button>
+            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
+        </div>
+
+        <div class="screen" id="screen-online">
+            <h2>🌐 Игра по сети</h2>
+            <div id="netPick"></div>
+            <button class="menu-btn" id="createRoomBtn">➕ Создать комнату</button>
+            <div id="roomInfo" style="display:none">
+                <p id="roomCode"></p>
+                <button class="menu-btn secondary" id="copyBtn">📋 Скопировать</button>
+            </div>
+            <div class="pick-row">
+                <input id="joinCode" placeholder="Код комнаты" maxlength="5" autocomplete="off">
+                <button class="menu-btn" id="joinBtn" style="width:auto">🔗 Войти</button>
+            </div>
+            <p id="netStatus"></p>
+            <button class="menu-btn secondary" id="manualToggleBtn">🛠 Без сервера (вручную)</button>
+            <div id="manualBox">
+                <p><b>Хост:</b> создай приглашение и отправь другу в мессенджере.</p>
+                <button class="menu-btn" id="mHostBtn" style="width:auto">1. Создать приглашение</button>
+                <textarea id="mOffer" readonly placeholder="Код приглашения (нажми, чтобы скопировать)"></textarea>
+                <textarea id="mAnswerIn" placeholder="Сюда вставь ответ друга"></textarea>
+                <button class="menu-btn" id="mConnectBtn" style="width:auto">3. Подключить</button>
+                <p><b>Друг:</b> вставь приглашение хоста и отправь ему получившийся ответ.</p>
+                <textarea id="mOfferIn" placeholder="Сюда вставь код приглашения от хоста"></textarea>
+                <button class="menu-btn" id="mGuestBtn" style="width:auto">2. Создать ответ</button>
+                <textarea id="mAnswerOut" readonly placeholder="Ответ (нажми, чтобы скопировать, и отправь хосту)"></textarea>
+            </div>
+            <button class="menu-btn secondary" id="netBackBtn">⬅️ Назад</button>
+        </div>
+
+        <div class="screen" id="screen-scores">
+            <h2>🏆 Таблица рекордов</h2>
+            <div id="scoreTabs" class="pick-row"></div>
+            <table id="scoreTable"></table>
+            <div class="pick-row">
+                <button class="menu-btn secondary" id="clearScoresBtn" style="width:auto;display:none">🗑 Очистить</button>
+                <button class="menu-btn secondary" data-back style="width:auto">⬅️ Назад</button>
+            </div>
+        </div>
+
+        <div class="screen" id="screen-settings">
+            <h2>⚙️ Настройки</h2>
+            <button class="menu-btn" id="nameBtn"></button>
+            <button class="menu-btn" id="soundBtn"></button>
+            <button class="menu-btn" id="swearBtn"></button>
+            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
+        </div>
+
+        <div class="screen" id="screen-about">
+            <h2>ℹ️ Об игре</h2>
+            <p>Собирай бутылки 🍾 и не врезайся в стены. С каждой бутылкой герой едет быстрее, а после десятой разгоняется ещё сильнее.</p>
+            <p>Управление: стрелки или WASD, на телефоне свайпы. Esc — меню.</p>
+            <p id="aboutBest"></p>
+            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
+        </div>
+    </div>
+</div>
+
+<div id="pad">
+    <button class="up" data-dir="up">⬆️</button>
+    <button class="left" data-dir="left">⬅️</button>
+    <button class="down" data-dir="down">⬇️</button>
+    <button class="right" data-dir="right">➡️</button>
+</div>
+
+<p class="desktop-only">Управление: стрелки или WASD. Enter / пробел / R — начать заново. Esc — меню.</p>
+<p>На телефоне: свайпы по полю или кнопки.</p>
 <p id="message"></p>
-<button onclick="restart()">🔄 Начать заново</button>
+<button id="restartBtn">🔄 Начать заново</button>
+<button id="menuBtn">☰ Меню</button>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-const normalImg = new Image();
-normalImg.src = "./player.jpg";
-const fastImg = new Image();
-fastImg.src = "./player2.jpg";
+// ---------- Герои (чтобы добавить нового — просто добавь объект сюда) ----------
+const heroes = [
+    {
+        id: "ilya", name: "Илья",
+        title: "ИЛЬЯ СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Ильи",
+        img: "./player.jpg", fastImg: "./player2.jpg",
+        sound: "./bottle.ogg", soundVolume: 0.2,
+        fastSound: "./bottle10.ogg", fastSoundVolume: 0.1,
+        playRude: "НЕ ДАЙ ИЛЮХЕ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ИЛЬЕ ПРОИГРАТЬ!",
+        overRude: "💥 ИЛЮХА РАЗЪЕБАЛСЯ!", overClean: "💥 ИЛЬЯ ПРОИГРАЛ!"
+    },
+    {
+        id: "dimon", name: "Димон",
+        title: "ДИМОН СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Димона",
+        img: "./dimon.jpg", fastImg: "./dimon2.jpg",
+        sound: "./dimon_bottle.ogg", soundVolume: 0.2,
+        fastSound: "./dimon_bottle10.ogg", fastSoundVolume: 0.1,
+        playRude: "НЕ ДАЙ ДИМОНУ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ДИМОНУ ПРОИГРАТЬ!",
+        overRude: "💥 ДИМОН РАЗЪЕБАЛСЯ!", overClean: "💥 ДИМОН ПРОИГРАЛ!"
+    }
+];
 
-const normalSound = new Audio("./bottle.ogg");
-normalSound.volume = 0.2;
-const specialSound = new Audio("./bottle10.ogg");
-specialSound.volume = 0.2;
+heroes.forEach(function(h) {
+    h.normalImg = new Image();
+    h.normalImg.src = h.img;
+    h.fastImgEl = new Image();
+    h.fastImgEl.src = h.fastImg;
+    h.normalImg.onload = function() { draw(); };
+    h.fastImgEl.onload = function() { draw(); };
+    h.normalImg.onerror = function() { console.error("Не удалось загрузить " + h.img); };
+    h.fastImgEl.onerror = function() { console.error("Не удалось загрузить " + h.fastImg); };
+    h.normalSound = new Audio(h.sound);
+    h.normalSound.volume = h.soundVolume;
+    h.specialSound = new Audio(h.fastSound);
+    h.specialSound.volume = h.fastSoundVolume;
+});
+let hero = heroes[0];
 
-const playerSize = 70;
-const bottleSize = 30;
+const playerSize = 100;
+const bottleSize = 45;
 let x = 100, y = 100;
 let bottleX = 300, bottleY = 200;
 let score = 0, speed = 5, direction = "right";
-let gameOver = false, redness = 0, swearingEnabled = true;
+let gameOver = false, started = false;
+let redness = 0, swearingEnabled = true;
+let best = 0;
 let timer = null;
 let keys = {};
+let inMenu = true, soundOn = true;
+let mode = "solo"; // "solo" или "duel"
+const duel = { p: [], count: 0, winner: null };
+let duelWins = [0, 0];
+const net = { role: null, host: false, peer: null, pc: null, conn: null, keys: {}, guestKeys: null };
+const NET_PREFIX = "ilya-duel-";
+let netHero = hero;
+let duelPick = [heroes[0], heroes[1] || heroes[0]];
+const duelMaps = [
+    { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right" },
+    { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }
+];
 
-normalImg.onload = draw;
-fastImg.onload = draw;
-normalImg.onerror = function() { console.error("Не удалось загрузить player.jpg"); };
-fastImg.onerror = function() { console.error("Не удалось загрузить player2.jpg"); };
+// Рекорд хранится в браузере (если localStorage недоступен — просто не сохраняем)
+try { hero = heroes.find(function(h) { return h.id === localStorage.getItem("ilya_hero"); }) || heroes[0]; } catch (e) {}
+best = readBest(hero.id);
+try {
+    swearingEnabled = localStorage.getItem("ilya_swear") !== "0";
+    soundOn = localStorage.getItem("ilya_sound") !== "0";
+} catch (e) {}
+
 
 function updateMessage() {
     const message = document.getElementById("message");
-    if (gameOver) {
-        message.textContent = swearingEnabled
-            ? "💥 ИЛЮХА РАЗЪЕБАЛСЯ! Бутылок: " + score
-            : "💥 ИЛЬЯ ПРОИГРАЛ! Бутылок: " + score;
-    } else {
-        message.textContent = swearingEnabled
-            ? "НЕ ДАЙ ИЛЮХЕ РАЗЪЕБАТЬСЯ 💀"
-            : "НЕ ДАЙ ИЛЬЕ ПРОИГРАТЬ!";
-    }
-}
-
-document.addEventListener("keydown", function(e) {
-    if (e.ctrlKey && e.shiftKey && (e.code === "KeyM" || e.key.toLowerCase() === "m")) {
-        e.preventDefault();
-        if (!e.repeat) {
-            swearingEnabled = !swearingEnabled;
-            updateMessage();
+    if (mode === "duel") {
+        if (!gameOver) {
+            message.textContent = net.role ? "⚔️ ОНЛАЙН-ДУЭЛЬ! Управление: стрелки или W A S D" : "⚔️ ДУЭЛЬ! Игрок 1 — W A S D, игрок 2 — стрелки";
+        } else if (duel.winner === "draw") {
+            message.textContent = "🤝 НИЧЬЯ!";
+        } else {
+            const lose = duel.p[1 - duel.winner].hero, win = duel.p[duel.winner].hero;
+            message.textContent = (swearingEnabled ? lose.overRude : lose.overClean) + " Победил " + win.name + " 🏆";
         }
         return;
     }
-    const key = e.key.toLowerCase();
-    if (["arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
-        keys[key] = true;
+    if (gameOver) {
+        message.textContent = (swearingEnabled ? hero.overRude : hero.overClean) + " Бутылок: " + score;
+    } else {
+        message.textContent = swearingEnabled ? hero.playRude : hero.playClean;
+    }
+}
+
+function setSpeedText(v) {
+    document.getElementById("speed").textContent = hero.speedLabel + ": " + Number(v).toFixed(v % 1 ? 1 : 0);
+}
+
+// Рекорд у каждого героя свой (у Ильи ключ прежний, чтобы рекорд не пропал)
+function bestKey(id) { return id === "ilya" ? "ilya_best" : "best_" + id; }
+function readBest(id) {
+    try { return parseInt(localStorage.getItem(bestKey(id)), 10) || 0; } catch (e) { return 0; }
+}
+function writeBest(id, v) {
+    try { localStorage.setItem(bestKey(id), String(v)); } catch (e) {}
+}
+function applyHero() {
+    document.getElementById("title").textContent = "🎮 " + hero.title + " 🍾";
+    best = readBest(hero.id);
+}
+
+function updateBest() {
+    document.getElementById("best").textContent = "Рекорд: " + best;
+}
+
+// Клавиши по физическому коду, поэтому WASD работает и на русской раскладке
+const codeToDir = {
+    ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right"
+};
+
+function setDirection(dir) {
+    if (inMenu || mode === "duel") return;
+    direction = dir;
+    started = true;
+}
+
+document.addEventListener("keydown", function(e) {
+    if (e.ctrlKey && e.shiftKey && e.code === "KeyM") {
         e.preventDefault();
+        if (!e.repeat) toggleSwearing();
+        return;
+    }
+    // Секрет: Ctrl+Shift+L на экране рекордов показывает/прячет кнопку «Очистить»
+    if (e.ctrlKey && e.shiftKey && e.code === "KeyL") {
+        e.preventDefault();
+        if (!e.repeat && inMenu && currentScreen === "scores") {
+            const cb = document.getElementById("clearScoresBtn");
+            cb.style.display = cb.style.display === "none" ? "" : "none";
+        }
+        return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    // Esc: открыть меню / вернуться назад / продолжить игру
+    if (e.code === "Escape") {
+        e.preventDefault();
+        if (!inMenu) { if (net.role && !gameOver) return; showMenu(); }
+        else if (currentScreen !== "main") showScreen("main");
+        else if (resumable()) hideMenu();
+        return;
+    }
+    // Пока открыто меню, игровые клавиши не работают
+    if (inMenu) return;
+
+    // Быстрый рестарт
+    if (e.code === "KeyR" || ((e.code === "Enter" || e.code === "Space") && gameOver)) {
+        e.preventDefault();
+        if (!e.repeat) restartAny();
+        return;
+    }
+
+    if (mode === "duel") {
+        if (net.role) {
+            const nd = duelMaps[0][e.code] || duelMaps[1][e.code];
+            if (nd) { e.preventDefault(); netSetKey(nd, true); }
+            return;
+        }
+        duelMaps.forEach(function(m, i) {
+            const d = m[e.code];
+            if (d && duel.p[i]) { e.preventDefault(); duel.p[i].keys[d] = true; }
+        });
+        return;
+    }
+
+    const dir = codeToDir[e.code];
+    if (dir) {
+        e.preventDefault();
+        keys[dir] = true;
+        started = true;
     }
 });
 document.addEventListener("keyup", function(e) {
-    keys[e.key.toLowerCase()] = false;
+    const dir = codeToDir[e.code];
+    if (dir) keys[dir] = false;
+    if (mode === "duel") {
+        if (net.role) {
+            const nd = duelMaps[0][e.code] || duelMaps[1][e.code];
+            if (nd) netSetKey(nd, false);
+            return;
+        }
+        duelMaps.forEach(function(m, i) {
+            const d = m[e.code];
+            if (d && duel.p[i]) duel.p[i].keys[d] = false;
+        });
+    }
+});
+
+// Экранные кнопки
+document.querySelectorAll("#pad button").forEach(function(btn) {
+    btn.addEventListener("pointerdown", function(e) {
+        e.preventDefault();
+        if (gameOver) return;
+        setDirection(btn.dataset.dir);
+    });
+});
+
+// Свайпы по полю
+let swipeX = null, swipeY = null;
+canvas.addEventListener("pointerdown", function(e) {
+    swipeX = e.clientX;
+    swipeY = e.clientY;
+    if (gameOver && e.pointerType === "touch") restartAny();
+});
+canvas.addEventListener("pointermove", function(e) {
+    if (swipeX === null || gameOver) return;
+    const dx = e.clientX - swipeX;
+    const dy = e.clientY - swipeY;
+    if (Math.abs(dx) < 25 && Math.abs(dy) < 25) return;
+    if (Math.abs(dx) > Math.abs(dy)) setDirection(dx > 0 ? "right" : "left");
+    else setDirection(dy > 0 ? "down" : "up");
+    swipeX = e.clientX;
+    swipeY = e.clientY;
+});
+function endSwipe() { swipeX = null; swipeY = null; }
+canvas.addEventListener("pointerup", endSwipe);
+canvas.addEventListener("pointercancel", endSwipe);
+canvas.addEventListener("pointerleave", endSwipe);
+
+const restartBtn = document.getElementById("restartBtn");
+restartBtn.addEventListener("click", function() {
+    hideMenu();
+    restartAny();
+    restartBtn.blur(); // чтобы пробел/Enter потом не нажимали кнопку повторно
+});
+
+// ---------- Меню ----------
+const menuEl = document.getElementById("menu");
+const playBtn = document.getElementById("playBtn");
+const soundBtn = document.getElementById("soundBtn");
+const swearBtn = document.getElementById("swearBtn");
+const newGameBtn = document.getElementById("newGameBtn");
+const duelBtn = document.getElementById("duelBtn");
+const onlineBtn = document.getElementById("onlineBtn");
+const leaveBtn = document.getElementById("leaveBtn");
+const heroList = document.getElementById("heroList");
+let currentScreen = "main";
+
+function resumable() { return started && !gameOver; }
+
+function showScreen(name) {
+    if (currentScreen === "online" && name !== "online" && !net.role) netCancel();
+    currentScreen = name;
+    document.querySelectorAll(".screen").forEach(function(el) {
+        el.classList.toggle("active", el.id === "screen-" + name);
+    });
+    if (name === "scores") {
+        document.getElementById("clearScoresBtn").style.display = "none";
+        renderScores();
+    }
+    if (name === "about") {
+        document.getElementById("aboutBest").textContent = "🏆 Рекорды: " + heroes.map(function(h) {
+            return h.name + " — " + readBest(h.id);
+        }).join(", ");
+    }
+    const first = document.querySelector("#screen-" + name + " button");
+    if (first) first.focus();
+}
+
+function showMenu() {
+    inMenu = true;
+    keys = {};
+    duel.p.forEach(function(q) { q.keys = {}; });
+    menuEl.classList.remove("hidden");
+    playBtn.textContent = resumable() ? "▶️ Продолжить" : "▶️ Играть";
+    const online = !!net.role;
+    newGameBtn.style.display = resumable() && !online ? "" : "none";
+    duelBtn.style.display = onlineBtn.style.display = online ? "none" : "";
+    leaveBtn.style.display = online ? "" : "none";
+    if (online) playBtn.textContent = "▶️ В игру";
+    refreshSettings();
+    showScreen("main");
+}
+
+function hideMenu() {
+    inMenu = false;
+    keys = {};
+    duel.p.forEach(function(q) { q.keys = {}; });
+    menuEl.classList.add("hidden");
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+
+function refreshSettings() {
+    soundBtn.textContent = "🔊 Звук: " + (soundOn ? "ВКЛ" : "ВЫКЛ");
+    swearBtn.textContent = "🤬 Мат: " + (swearingEnabled ? "ВКЛ" : "ВЫКЛ");
+    document.getElementById("nameBtn").textContent = "✏️ Имя: " + (playerName || "не задано");
+}
+
+function saveSetting(key, value) {
+    try { localStorage.setItem(key, value ? "1" : "0"); } catch (e) {}
+}
+
+function toggleSwearing() {
+    swearingEnabled = !swearingEnabled;
+    saveSetting("ilya_swear", swearingEnabled);
+    refreshSettings();
+    updateMessage();
+}
+
+// ---------- Дуэль ----------
+function restartAny() {
+    if (mode !== "duel") { restart(); return; }
+    if (net.role === "guest") { if (gameOver) netSend({ t: "r" }); return; }
+    if (net.role === "host" && !gameOver) return;
+    startDuel();
+}
+
+function startDuel(remote) {
+    mode = "duel";
+    clearInterval(timer);
+    const W = canvas.width, H = canvas.height;
+    duel.p = [0, 1].map(function(i) {
+        return {
+            hero: duelPick[i], x: i ? W - 100 - playerSize : 100, y: (H - playerSize) / 2,
+            speed: calcSpeed(0), direction: i ? "left" : "right", score: 0, redness: 0, keys: {}
+        };
+    });
+    if (net.role === "host" && net.guestKeys) duel.p[1].keys = Object.assign({}, net.guestKeys);
+    duel.count = 90; // обратный отсчёт 3-2-1
+    duel.winner = null;
+    gameOver = false; started = true;
+    bottleX = W / 2 - bottleSize / 2; bottleY = H / 2 - bottleSize / 2;
+    document.getElementById("title").textContent = "⚔️ ДУЭЛЬ: " + duel.p[0].hero.name + " vs " + duel.p[1].hero.name;
+    setDuelHud();
+    updateMessage();
+    draw();
+    if (remote) return;
+    if (net.role === "host") netSend({ t: "start", h: [duelPick[0].id, duelPick[1].id] });
+    timer = setInterval(update, 30);
+}
+
+function setDuelHud() {
+    const a = duel.p[0], b = duel.p[1];
+    document.getElementById("score").textContent = "Игрок 1 (" + a.hero.name + "): " + a.score + "   |   Игрок 2 (" + b.hero.name + "): " + b.score;
+    document.getElementById("speed").textContent = "Скорость: " + a.speed.toFixed(1) + " — " + b.speed.toFixed(1);
+    document.getElementById("best").textContent = "Побед в дуэли: " + duelWins[0] + " : " + duelWins[1];
+}
+
+function updateDuel() {
+    if (gameOver || inMenu) return;
+    duel.p.forEach(function(q) {
+        if (q.keys.up) q.direction = "up";
+        else if (q.keys.down) q.direction = "down";
+        else if (q.keys.left) q.direction = "left";
+        else if (q.keys.right) q.direction = "right";
+    });
+    if (duel.count > 0) { duel.count--; draw(); sendState(); return; }
+
+    const dead = [false, false];
+    duel.p.forEach(function(q, i) {
+        let nx = q.x, ny = q.y;
+        if (q.direction === "up") ny -= q.speed;
+        if (q.direction === "down") ny += q.speed;
+        if (q.direction === "left") nx -= q.speed;
+        if (q.direction === "right") nx += q.speed;
+        if (nx < 0 || ny < 0 || nx + playerSize > canvas.width || ny + playerSize > canvas.height) dead[i] = true;
+        else { q.x = nx; q.y = ny; }
+    });
+    if (dead[0] || dead[1]) { endDuel(dead); return; }
+
+    for (let i = 0; i < 2; i++) {
+        const q = duel.p[i];
+        if (q.x < bottleX + bottleSize && q.x + playerSize > bottleX &&
+            q.y < bottleY + bottleSize && q.y + playerSize > bottleY) {
+            q.score++;
+            const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
+            if (soundOn) { sound.currentTime = 0; sound.play().catch(function() {}); }
+            q.speed = calcSpeed(q.score);
+            q.redness = q.speed >= 12 ? 0 : Math.min(q.score * 0.06, 0.7);
+            newBottle();
+            break;
+        }
+    }
+    setDuelHud();
+    draw();
+    sendState();
+}
+
+function endDuel(dead) {
+    const a = duel.p[0], b = duel.p[1];
+    let w;
+    if (dead[0] && dead[1]) w = a.score > b.score ? 0 : b.score > a.score ? 1 : "draw";
+    else w = dead[0] ? 1 : 0;
+    duel.winner = w;
+    if (w !== "draw") duelWins[w]++;
+    gameOver = true;
+    clearInterval(timer);
+    setDuelHud();
+    updateMessage();
+    draw();
+    sendState();
+}
+
+function drawHero(h, px, py, spd, red) {
+    let img = spd >= 12 ? h.fastImgEl : h.normalImg;
+    if (!img.complete || img.naturalWidth === 0) img = h.normalImg;
+    if (img.complete && img.naturalWidth > 0) {
+        drawSquare(img, px, py, playerSize);
+        if (red > 0 && spd < 12) {
+            ctx.save();
+            ctx.globalCompositeOperation = "source-atop";
+            ctx.fillStyle = "rgba(255, 0, 0, " + red + ")";
+            ctx.fillRect(px, py, playerSize, playerSize);
+            ctx.restore();
+        }
+    } else {
+        ctx.fillStyle = "lime";
+        ctx.fillRect(px, py, playerSize, playerSize);
+        ctx.fillStyle = "black";
+        ctx.font = "20px Arial";
+        ctx.fillText(h.name.toUpperCase(), px + 10, py + playerSize / 2 + 7);
+    }
+}
+
+function drawDuel() {
+    ctx.font = bottleSize + "px Arial";
+    ctx.fillText("🍾", bottleX, bottleY + bottleSize * 0.83);
+    duel.p.forEach(function(q, i) {
+        drawHero(q.hero, q.x, q.y, q.speed, q.redness);
+        ctx.fillStyle = i ? "#ff9d9d" : "#9dd1ff";
+        ctx.font = "bold 22px Arial";
+        ctx.fillText(net.role ? (i === (net.role === "host" ? 0 : 1) ? "Ты" : "Соперник") : "Игрок " + (i + 1), q.x, Math.max(22, q.y - 8));
+    });
+    if (gameOver) {
+        const head = duel.winner === "draw" ? "🤝 НИЧЬЯ!" : "🏆 Победил " + duel.p[duel.winner].hero.name + "!";
+        drawBanner([head, "Enter — реванш  |  Побед: " + duelWins[0] + " : " + duelWins[1]]);
+    } else if (duel.count > 0) {
+        drawBanner([String(Math.ceil(duel.count / 30)), net.role ? "Управление: стрелки или W A S D" : "Игрок 1: W A S D   |   Игрок 2: стрелки"]);
+    }
+}
+
+// Выбор героев для дуэли
+const duelPickEl = document.getElementById("duelPick");
+function renderDuelPick() {
+    duelPickEl.innerHTML = "";
+    [0, 1].forEach(function(i) {
+        const row = document.createElement("div");
+        row.className = "pick-row";
+        const label = document.createElement("span");
+        label.textContent = "Игрок " + (i + 1) + (i ? " (стрелки):" : " (WASD):");
+        row.appendChild(label);
+        heroes.forEach(function(h) {
+            const card = document.createElement("button");
+            card.className = "hero-card small" + (duelPick[i] === h ? " selected" : "");
+            card.innerHTML = '<img src="' + h.img + '" alt=""><span>' + h.name + "</span>";
+            card.addEventListener("click", function() { duelPick[i] = h; renderDuelPick(); });
+            row.appendChild(card);
+        });
+        duelPickEl.appendChild(row);
+    });
+}
+renderDuelPick();
+document.getElementById("duelBtn").addEventListener("click", function() { showScreen("duel"); });
+document.getElementById("duelStartBtn").addEventListener("click", function() { hideMenu(); startDuel(); });
+
+// ---------- Игра по сети (WebRTC через PeerJS: хост считает игру, гость шлёт нажатия) ----------
+const netStatusEl = document.getElementById("netStatus");
+const roomInfoEl = document.getElementById("roomInfo");
+const joinInput = document.getElementById("joinCode");
+function setNetStatus(t) { netStatusEl.textContent = t || ""; }
+function heroById(id) { return heroes.find(function(h) { return h.id === id; }) || heroes[0]; }
+function netSend(m) { if (net.conn && net.conn.open) net.conn.send(m); }
+
+function netSetKey(d, val) {
+    if (net.role === "host") { if (duel.p[0]) duel.p[0].keys[d] = val; }
+    else { net.keys[d] = val; netSend({ t: "k", k: net.keys }); }
+}
+
+function sendState() {
+    if (net.role !== "host") return;
+    netSend({
+        t: "s", c: duel.count, g: gameOver, w: duel.winner, wn: duelWins, b: [bottleX, bottleY],
+        p: duel.p.map(function(q) { return [q.x, q.y, q.speed, q.score, q.redness]; })
+    });
+}
+
+function applyState(m) {
+    m.p.forEach(function(a, i) {
+        const q = duel.p[i];
+        const prev = q.score;
+        q.x = a[0]; q.y = a[1]; q.speed = a[2]; q.score = a[3]; q.redness = a[4];
+        if (a[3] > prev && soundOn) {
+            const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
+            sound.currentTime = 0;
+            sound.play().catch(function() {});
+        }
+    });
+    bottleX = m.b[0]; bottleY = m.b[1];
+    duel.count = m.c; duel.winner = m.w; duelWins = m.wn; gameOver = m.g;
+    setDuelHud();
+    updateMessage();
+    draw();
+}
+
+function onNetData(m) {
+    if (!m || !m.t) return;
+    if (net.host) {
+        if (m.t === "hello" && !net.role) {
+            net.role = "host";
+            duelPick = [netHero, heroById(m.hero)];
+            setNetStatus("");
+            hideMenu();
+            startDuel();
+        } else if (m.t === "k" && m.k && duel.p[1]) {
+            net.guestKeys = { up: !!m.k.up, down: !!m.k.down, left: !!m.k.left, right: !!m.k.right };
+            duel.p[1].keys = Object.assign({}, net.guestKeys);
+        } else if (m.t === "r" && gameOver) {
+            hideMenu();
+            startDuel();
+        }
+    } else if (net.role === "guest") {
+        if (m.t === "start") {
+            duelPick = [heroById(m.h[0]), heroById(m.h[1])];
+            hideMenu();
+            startDuel(true);
+        } else if (m.t === "s" && mode === "duel" && duel.p.length === 2) {
+            applyState(m);
+        }
+    }
+}
+
+function netCancel() {
+    const peer = net.peer;
+    net.peer = null; net.conn = null; net.host = false;
+    if (peer) { try { peer.destroy(); } catch (e) {} }
+    if (net.pc) { try { net.pc.close(); } catch (e) {} net.pc = null; }
+    roomInfoEl.style.display = "none";
+}
+
+const SERVER_DOWN = "Не удаётся связаться с бесплатным сервером PeerJS (он бывает недоступен или заблокирован у провайдера). Попробуй позже или нажми «Без сервера (вручную)».";
+function netProblem(err) {
+    if (["server-error", "network", "socket-error", "socket-closed"].indexOf(err.type) >= 0) {
+        setNetStatus(SERVER_DOWN);
+        document.getElementById("manualBox").style.display = "flex";
+    } else setNetStatus("Ошибка сети: " + err.type);
+}
+
+function netLeave(text) {
+    net.role = null; net.guestKeys = null; net.keys = {};
+    netCancel();
+    applyHero();
+    restart();
+    showMenu();
+    if (text) { showScreen("online"); setNetStatus(text); }
+}
+
+function randomCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let c = "";
+    for (let i = 0; i < 5; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+}
+
+function createRoom() {
+    if (typeof Peer === "undefined") { setNetStatus("Не загрузилась сетевая библиотека. Проверь интернет."); return; }
+    netCancel();
+    setNetStatus("Создаём комнату…");
+    const code = randomCode();
+    const peer = new Peer(NET_PREFIX + code);
+    net.peer = peer; net.host = true;
+    peer.on("open", function() {
+        let text = "Код комнаты: " + code;
+        if (typeof location !== "undefined" && /^https?:$/.test(location.protocol)) {
+            net.invite = location.origin + location.pathname + "?room=" + code;
+            text += "\n" + net.invite;
+        } else net.invite = code;
+        document.getElementById("roomCode").textContent = text;
+        document.getElementById("roomCode").style.whiteSpace = "pre-line";
+        roomInfoEl.style.display = "";
+        setNetStatus("Ждём друга… отправь ему код (или ссылку, если игра выложена в интернет).");
+    });
+    peer.on("connection", function(conn) {
+        if (net.conn || net.role) { conn.on("open", function() { conn.close(); }); return; }
+        net.conn = conn;
+        conn.on("data", onNetData);
+        conn.on("close", function() { if (net.role) netLeave("Соперник отключился."); });
+        conn.on("error", function() { if (net.role) netLeave("Ошибка соединения."); });
+    });
+    peer.on("error", function(err) {
+        if (err.type === "unavailable-id") createRoom();
+        else if (net.role) netLeave("Ошибка сети: " + err.type);
+        else netProblem(err);
+    });
+}
+
+function joinRoom() {
+    const code = joinInput.value.trim().toUpperCase();
+    if (!code) { setNetStatus("Введи код комнаты."); return; }
+    if (typeof Peer === "undefined") { setNetStatus("Не загрузилась сетевая библиотека. Проверь интернет."); return; }
+    netCancel();
+    setNetStatus("Подключаемся…");
+    const peer = new Peer();
+    net.peer = peer;
+    const timeout = setTimeout(function() {
+        if (!net.role) { netCancel(); setNetStatus("Не удалось подключиться. Проверь код и интернет."); }
+    }, 15000);
+    peer.on("open", function() {
+        const conn = peer.connect(NET_PREFIX + code, { reliable: true });
+        net.conn = conn;
+        conn.on("open", function() {
+            clearTimeout(timeout);
+            net.role = "guest";
+            conn.send({ t: "hello", hero: netHero.id });
+            setNetStatus("Подключились! Ждём старт…");
+        });
+        conn.on("data", onNetData);
+        conn.on("close", function() { if (net.role) netLeave("Соединение потеряно."); });
+        conn.on("error", function() { if (net.role) netLeave("Ошибка соединения."); });
+    });
+    peer.on("error", function(err) {
+        clearTimeout(timeout);
+        netCancel();
+        if (err.type === "peer-unavailable") setNetStatus("Комната не найдена. Проверь код.");
+        else netProblem(err);
+    });
+}
+
+// ---------- Режим «вручную»: WebRTC без сервера (коды копируются через мессенджер) ----------
+const RTC_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
+
+function makeRtcConn(pc, dc) {
+    const rc = {
+        h: {}, open: false,
+        on: function(t, f) { (this.h[t] = this.h[t] || []).push(f); },
+        emit: function(t, a) { (this.h[t] || []).forEach(function(f) { f(a); }); },
+        send: function(m) { if (dc.readyState === "open") dc.send(JSON.stringify(m)); },
+        close: function() { try { pc.close(); } catch (e) {} }
+    };
+    let closed = false;
+    function fireClose() { if (closed) return; closed = true; rc.open = false; rc.emit("close"); }
+    function fireOpen() { if (rc.open || closed) return; rc.open = true; rc.emit("open"); }
+    dc.onopen = fireOpen;
+    dc.onclose = fireClose;
+    dc.onmessage = function(e) { try { rc.emit("data", JSON.parse(e.data)); } catch (err) {} };
+    pc.onconnectionstatechange = function() {
+        if (pc.connectionState === "failed" || pc.connectionState === "closed") fireClose();
+    };
+    if (dc.readyState === "open") setTimeout(fireOpen, 0);
+    return rc;
+}
+
+function waitIce(pc) {
+    return new Promise(function(resolve) {
+        if (pc.iceGatheringState === "complete") return resolve();
+        pc.addEventListener("icegatheringstatechange", function() {
+            if (pc.iceGatheringState === "complete") resolve();
+        });
+        setTimeout(resolve, 4000);
+    });
+}
+
+async function packDesc(d) {
+    let bytes = new TextEncoder().encode(JSON.stringify({ t: d.type, s: d.sdp }));
+    let tag = "P";
+    if (typeof CompressionStream !== "undefined") {
+        const out = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+        bytes = new Uint8Array(await new Response(out).arrayBuffer());
+        tag = "Z";
+    }
+    let bin = "";
+    bytes.forEach(function(b) { bin += String.fromCharCode(b); });
+    return tag + btoa(bin);
+}
+
+async function unpackDesc(text) {
+    text = text.trim();
+    const tag = text[0];
+    const bin = atob(text.slice(1));
+    let bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (tag === "Z") {
+        const out = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        bytes = new Uint8Array(await new Response(out).arrayBuffer());
+    }
+    const o = JSON.parse(new TextDecoder().decode(bytes));
+    return { type: o.t, sdp: o.s };
+}
+
+function attachGuestConn(rc) {
+    net.conn = rc;
+    rc.on("open", function() {
+        net.role = "guest";
+        rc.send({ t: "hello", hero: netHero.id });
+        setNetStatus("Подключились! Ждём старт…");
+    });
+    rc.on("data", onNetData);
+    rc.on("close", function() { if (net.role) netLeave("Соединение потеряно."); });
+}
+
+async function manualHostCreate() {
+    if (typeof RTCPeerConnection === "undefined") { setNetStatus("Этот браузер не поддерживает WebRTC."); return; }
+    netCancel();
+    try {
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        const rc = makeRtcConn(pc, pc.createDataChannel("game"));
+        net.pc = pc; net.host = true; net.conn = rc;
+        rc.on("data", onNetData);
+        rc.on("close", function() { if (net.role) netLeave("Соперник отключился."); });
+        await pc.setLocalDescription(await pc.createOffer());
+        await waitIce(pc);
+        document.getElementById("mOffer").value = await packDesc(pc.localDescription);
+        setNetStatus("Отправь код приглашения другу. Когда пришлёт ответ, вставь его ниже и нажми «Подключить».");
+    } catch (e) { setNetStatus("Не получилось создать приглашение: " + e.message); }
+}
+
+async function manualHostConnect() {
+    const pc = net.pc;
+    if (!pc || !net.host) { setNetStatus("Сначала создай приглашение (шаг 1)."); return; }
+    try {
+        await pc.setRemoteDescription(await unpackDesc(document.getElementById("mAnswerIn").value));
+        setNetStatus("Подключаемся…");
+    } catch (e) { setNetStatus("Ответ друга не подошёл: проверь, что скопирован целиком."); }
+}
+
+async function manualGuestAnswer() {
+    if (typeof RTCPeerConnection === "undefined") { setNetStatus("Этот браузер не поддерживает WebRTC."); return; }
+    let offer;
+    try { offer = await unpackDesc(document.getElementById("mOfferIn").value); }
+    catch (e) { setNetStatus("Код приглашения не подошёл: проверь, что скопирован целиком."); return; }
+    netCancel();
+    try {
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        net.pc = pc;
+        pc.ondatachannel = function(e) { attachGuestConn(makeRtcConn(pc, e.channel)); };
+        await pc.setRemoteDescription(offer);
+        await pc.setLocalDescription(await pc.createAnswer());
+        await waitIce(pc);
+        document.getElementById("mAnswerOut").value = await packDesc(pc.localDescription);
+        setNetStatus("Отправь этот ответ хосту. Дальше он нажмёт «Подключить».");
+    } catch (e) { setNetStatus("Не получилось создать ответ: " + e.message); }
+}
+
+function selectAndCopy(id) {
+    const el = document.getElementById(id);
+    el.addEventListener("click", function() {
+        el.select();
+        try { navigator.clipboard.writeText(el.value); setNetStatus("Скопировано!"); } catch (e) {}
+    });
+}
+selectAndCopy("mOffer");
+selectAndCopy("mAnswerOut");
+["mAnswerIn", "mOfferIn"].forEach(function(id) {
+    document.getElementById(id).addEventListener("keydown", function(e) { e.stopPropagation(); });
+});
+document.getElementById("manualToggleBtn").addEventListener("click", function() {
+    const box = document.getElementById("manualBox");
+    box.style.display = box.style.display === "flex" ? "none" : "flex";
+});
+document.getElementById("mHostBtn").addEventListener("click", manualHostCreate);
+document.getElementById("mConnectBtn").addEventListener("click", manualHostConnect);
+document.getElementById("mGuestBtn").addEventListener("click", manualGuestAnswer);
+
+const netPickEl = document.getElementById("netPick");
+function renderNetPick() {
+    netPickEl.innerHTML = "";
+    const row = document.createElement("div");
+    row.className = "pick-row";
+    const label = document.createElement("span");
+    label.textContent = "Твой герой:";
+    row.appendChild(label);
+    heroes.forEach(function(h) {
+        const card = document.createElement("button");
+        card.className = "hero-card small" + (netHero === h ? " selected" : "");
+        card.innerHTML = '<img src="' + h.img + '" alt=""><span>' + h.name + "</span>";
+        card.addEventListener("click", function() { netHero = h; renderNetPick(); });
+        row.appendChild(card);
+    });
+    netPickEl.appendChild(row);
+}
+renderNetPick();
+onlineBtn.addEventListener("click", function() { setNetStatus(""); showScreen("online"); });
+document.getElementById("createRoomBtn").addEventListener("click", createRoom);
+document.getElementById("joinBtn").addEventListener("click", joinRoom);
+joinInput.addEventListener("keydown", function(e) { e.stopPropagation(); if (e.key === "Enter") joinRoom(); });
+document.getElementById("copyBtn").addEventListener("click", function() {
+    try { navigator.clipboard.writeText(net.invite || ""); setNetStatus("Скопировано!"); }
+    catch (e) { setNetStatus("Скопируй вручную из текста выше."); }
+});
+document.getElementById("netBackBtn").addEventListener("click", function() { showScreen("main"); });
+leaveBtn.addEventListener("click", function() { netLeave(); });
+
+// ---------- Таблица рекордов (хранится в этом браузере) ----------
+const SCORES_KEY = "ilya_scores";
+let playerName = "";
+try { playerName = localStorage.getItem("ilya_name") || ""; } catch (e) {}
+let scoreFilter = "all";
+let lastScoreId = 0;
+
+function loadScores() {
+    try {
+        const a = JSON.parse(localStorage.getItem(SCORES_KEY));
+        return Array.isArray(a) ? a : [];
+    } catch (e) { return []; }
+}
+function saveScores(a) { try { localStorage.setItem(SCORES_KEY, JSON.stringify(a)); } catch (e) {} }
+
+function setName(n) {
+    playerName = String(n || "").trim().slice(0, 16);
+    try { localStorage.setItem("ilya_name", playerName); } catch (e) {}
+    refreshSettings();
+}
+function askName() {
+    if (typeof prompt !== "function") return;
+    const n = prompt("Как тебя зовут? Имя попадёт в таблицу рекордов:", playerName || "");
+    if (n !== null && n.trim()) setName(n);
+}
+
+function recordScore(sc, h) {
+    if (sc <= 0) return;
+    if (!playerName) { askName(); if (!playerName) setName("Игрок"); }
+    const list = loadScores();
+    const entry = { n: playerName, h: h.id, s: sc, d: Date.now() + Math.random() };
+    list.push(entry);
+    list.sort(function(a, b) { return b.s - a.s || a.d - b.d; });
+    saveScores(list.slice(0, 50));
+    lastScoreId = entry.d;
+}
+
+function renderScores() {
+    const tabs = document.getElementById("scoreTabs");
+    tabs.innerHTML = "";
+    [{ id: "all", name: "Все" }].concat(heroes).forEach(function(t) {
+        const b = document.createElement("button");
+        b.className = "hero-card small" + (scoreFilter === t.id ? " selected" : "");
+        b.textContent = t.name;
+        b.addEventListener("click", function() { scoreFilter = t.id; renderScores(); });
+        tabs.appendChild(b);
+    });
+
+    const table = document.getElementById("scoreTable");
+    table.innerHTML = "";
+    const head = document.createElement("tr");
+    ["#", "Игрок", "Герой", "Бутылок", "Дата"].forEach(function(t) {
+        const th = document.createElement("th");
+        th.textContent = t;
+        head.appendChild(th);
+    });
+    table.appendChild(head);
+
+    const rows = loadScores().filter(function(e) { return scoreFilter === "all" || e.h === scoreFilter; }).slice(0, 10);
+    if (!rows.length) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 5; td.className = "empty";
+        td.textContent = "Пока пусто — сыграй и поставь рекорд!";
+        tr.appendChild(td);
+        table.appendChild(tr);
+        return;
+    }
+    const medals = ["🥇", "🥈", "🥉"];
+    rows.forEach(function(e, i) {
+        const tr = document.createElement("tr");
+        if (e.d === lastScoreId) tr.className = "me";
+        [medals[i] || String(i + 1), e.n, heroById(e.h).name, String(e.s), new Date(e.d).toLocaleDateString("ru-RU")].forEach(function(t) {
+            const td = document.createElement("td");
+            td.textContent = t;
+            tr.appendChild(td);
+        });
+        table.appendChild(tr);
+    });
+}
+
+document.getElementById("scoresBtn").addEventListener("click", function() { showScreen("scores"); });
+document.getElementById("nameBtn").addEventListener("click", function() { askName(); refreshSettings(); });
+document.getElementById("clearScoresBtn").addEventListener("click", function() {
+    if (typeof confirm !== "function" || confirm("Очистить всю таблицу рекордов?")) {
+        saveScores([]);
+        lastScoreId = 0;
+        renderScores();
+    }
+});
+
+function chooseHero(h) {
+    hero = h;
+    try { localStorage.setItem("ilya_hero", h.id); } catch (e) {}
+    applyHero();
+    hideMenu();
+    restart();
+}
+
+heroes.forEach(function(h) {
+    const card = document.createElement("button");
+    card.className = "hero-card";
+    card.innerHTML = '<img src="' + h.img + '" alt=""><span>' + h.name + "</span>";
+    card.addEventListener("click", function() { chooseHero(h); });
+    heroList.appendChild(card);
+});
+
+playBtn.addEventListener("click", function() {
+    if (net.role || resumable()) hideMenu();
+    else showScreen("heroes");
+});
+newGameBtn.addEventListener("click", function() { showScreen("heroes"); });
+document.getElementById("settingsBtn").addEventListener("click", function() { showScreen("settings"); });
+document.getElementById("aboutBtn").addEventListener("click", function() { showScreen("about"); });
+document.querySelectorAll("[data-back]").forEach(function(btn) {
+    btn.addEventListener("click", function() { showScreen("main"); });
+});
+soundBtn.addEventListener("click", function() {
+    soundOn = !soundOn;
+    saveSetting("ilya_sound", soundOn);
+    refreshSettings();
+});
+swearBtn.addEventListener("click", toggleSwearing);
+document.getElementById("menuBtn").addEventListener("click", function() {
+    if (net.role && !gameOver) return;
+    showMenu();
 });
 
 function newBottle() {
+    const occupied = mode === "duel" ? duel.p : [{ x: x, y: y }];
     let attempts = 0;
     do {
-        bottleX = Math.floor(Math.random() * 37) * 20 + 20;
-        bottleY = Math.floor(Math.random() * 22) * 20 + 20;
+        const cols = Math.floor((canvas.width - bottleSize - 40) / 20) + 1;
+        const rows = Math.floor((canvas.height - bottleSize - 40) / 20) + 1;
+        bottleX = Math.floor(Math.random() * cols) * 20 + 20;
+        bottleY = Math.floor(Math.random() * rows) * 20 + 20;
         attempts++;
     } while (
         attempts < 100 &&
-        x < bottleX + bottleSize && x + playerSize > bottleX &&
-        y < bottleY + bottleSize && y + playerSize > bottleY
+        occupied.some(function(o) {
+            return o.x < bottleX + bottleSize && o.x + playerSize > bottleX &&
+                   o.y < bottleY + bottleSize && o.y + playerSize > bottleY;
+        })
     );
 }
 
 function restart() {
+    mode = "solo";
     clearInterval(timer);
     x = 100; y = 100;
     score = 0; speed = 5; direction = "right"; redness = 0;
-    keys = {}; gameOver = false;
+    keys = {}; gameOver = false; started = false;
     document.getElementById("score").textContent = "Собрано бутылок: 0";
-    document.getElementById("speed").textContent = "Скорость Ильи: 5";
+    setSpeedText(5);
+    updateBest();
     updateMessage();
     newBottle();
     draw();
     timer = setInterval(update, 30);
 }
 
+// Настройки скорости (можно крутить под себя)
+const START_SPEED = 5;        // скорость в начале
+const STEP_BEFORE_10 = 0.7;   // прирост за бутылку до 10 бутылок
+const STEP_AFTER_10 = 1.0;    // прирост за каждую бутылку после 10-й (больше, чем раньше)
+
+function calcSpeed(n) {
+    if (n <= 10) return START_SPEED + n * STEP_BEFORE_10;
+    return START_SPEED + 10 * STEP_BEFORE_10 + (n - 10) * STEP_AFTER_10;
+}
+
 function update() {
-    if (gameOver) return;
-    if (keys["arrowup"]) direction = "up";
-    else if (keys["arrowdown"]) direction = "down";
-    else if (keys["arrowleft"]) direction = "left";
-    else if (keys["arrowright"]) direction = "right";
+    if (mode === "duel") { updateDuel(); return; }
+    if (gameOver || !started || inMenu) return;
+    if (keys.up) direction = "up";
+    else if (keys.down) direction = "down";
+    else if (keys.left) direction = "left";
+    else if (keys.right) direction = "right";
 
     let nextX = x, nextY = y;
     if (direction === "up") nextY -= speed;
@@ -156,14 +1218,16 @@ function update() {
     if (x < bottleX + bottleSize && x + playerSize > bottleX &&
         y < bottleY + bottleSize && y + playerSize > bottleY) {
         score++;
-        const sound = score >= 10 ? specialSound : normalSound;
-        sound.currentTime = 0;
-        sound.play().catch(function() {});
+        const sound = score >= 10 ? hero.specialSound : hero.normalSound;
+        if (soundOn) {
+            sound.currentTime = 0;
+            sound.play().catch(function() {});
+        }
 
-        speed = Math.min(5 + score * 0.7, 14);
+        speed = calcSpeed(score);
         redness = speed >= 12 ? 0 : Math.min(score * 0.06, 0.7);
         document.getElementById("score").textContent = "Собрано бутылок: " + score;
-        document.getElementById("speed").textContent = "Скорость Ильи: " + speed.toFixed(1);
+        setSpeedText(speed);
         newBottle();
     }
     draw();
@@ -172,22 +1236,50 @@ function update() {
 function loseGame() {
     gameOver = true;
     clearInterval(timer);
+    if (score > best) {
+        best = score;
+        writeBest(hero.id, best);
+    }
+    updateBest();
     updateMessage();
     draw();
+    const finalScore = score, finalHero = hero;
+    setTimeout(function() { recordScore(finalScore, finalHero); }, 80);
+}
+
+// Рисует картинку в квадрат без искажений: берём квадрат сверху (там лицо)
+function drawSquare(img, dx, dy, size) {
+    const s = Math.min(img.naturalWidth, img.naturalHeight);
+    const sx = (img.naturalWidth - s) / 2;
+    ctx.drawImage(img, sx, 0, s, s, dx, dy, size, size);
+}
+
+function drawBanner(lines) {
+    const cy = canvas.height / 2;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.fillRect(0, cy - 90, canvas.width, 180);
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.font = "bold 44px Arial";
+    ctx.fillText(lines[0], canvas.width / 2, cy - 15);
+    ctx.font = "28px Arial";
+    ctx.fillText(lines[1], canvas.width / 2, cy + 40);
+    ctx.textAlign = "start";
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = "30px Arial";
-    ctx.fillText("🍾", bottleX, bottleY + 25);
+    if (mode === "duel") { drawDuel(); return; }
+    ctx.font = bottleSize + "px Arial";
+    ctx.fillText("🍾", bottleX, bottleY + bottleSize * 0.83);
 
-    let currentImg = speed >= 12 ? fastImg : normalImg;
+    let currentImg = speed >= 12 ? hero.fastImgEl : hero.normalImg;
     if (!currentImg.complete || currentImg.naturalWidth === 0) {
-        currentImg = normalImg;
+        currentImg = hero.normalImg;
     }
 
     if (currentImg.complete && currentImg.naturalWidth > 0) {
-        ctx.drawImage(currentImg, x, y, playerSize, playerSize);
+        drawSquare(currentImg, x, y, playerSize);
         if (redness > 0 && speed < 12) {
             ctx.save();
             ctx.globalCompositeOperation = "source-atop";
@@ -199,25 +1291,29 @@ function draw() {
         ctx.fillStyle = "lime";
         ctx.fillRect(x, y, playerSize, playerSize);
         ctx.fillStyle = "black";
-        ctx.font = "14px Arial";
-        ctx.fillText("ИЛЬЯ", x + 10, y + 40);
+        ctx.font = "20px Arial";
+        ctx.fillText(hero.name.toUpperCase(), x + 10, y + playerSize / 2 + 7);
     }
 
     if (gameOver) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        ctx.fillRect(0, 170, canvas.width, 150);
-        ctx.fillStyle = "white";
-        ctx.textAlign = "center";
-        ctx.font = "bold 34px Arial";
-        ctx.fillText("ИГРА ОКОНЧЕНА!", canvas.width / 2, 225);
-        ctx.font = "26px Arial";
-        ctx.fillText("Бутылок: " + score, canvas.width / 2, 270);
-        ctx.textAlign = "start";
+        drawBanner(["ИГРА ОКОНЧЕНА!", "Бутылок: " + score + "  |  Рекорд: " + best + "  |  Enter — заново"]);
+    } else if (!started) {
+        drawBanner(["ГОТОВ?", "Нажми стрелку или свайпни, чтобы начать"]);
     }
 }
 
-updateMessage();
+applyHero();
 restart();
+showMenu();
+(function() {
+    if (typeof location === "undefined") return;
+    const room = new URLSearchParams(location.search).get("room");
+    if (room) {
+        showScreen("online");
+        joinInput.value = room.toUpperCase().slice(0, 5);
+        joinRoom();
+    }
+})();
 </script>
 </body>
 </html>
