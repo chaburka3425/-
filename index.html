@@ -151,6 +151,7 @@ button {
             <button class="menu-btn" id="playBtn">▶️ Играть</button>
             <button class="menu-btn secondary" id="newGameBtn">🆕 Новая игра</button>
             <button class="menu-btn" id="versusBtn"></button>
+            <button class="menu-btn" id="bossBtn"></button>
             <button class="menu-btn secondary" id="leaveBtn">🚪 Выйти из комнаты</button>
             <button class="menu-btn" id="settingsBtn">⚙️ Настройки</button>
         </div>
@@ -243,7 +244,7 @@ const ctx = canvas.getContext("2d");
 // ---------- Герои (чтобы добавить нового — просто добавь объект сюда) ----------
 const heroes = [
     {
-        id: "ilya", name: "Илья",
+        id: "ilya", name: "Илья", hp: 100,
         speedLabel: "Скорость Ильи",
         img: "./player.jpg", fastImg: "./player2.jpg",
         sound: "./bottle.ogg", soundVolume: 0.2,
@@ -252,7 +253,7 @@ const heroes = [
         overRude: "💥 ИЛЮХА РАЗЪЕБАЛСЯ!", overClean: "💥 ИЛЬЯ ПРОИГРАЛ!"
     },
     {
-        id: "dimon", name: "Димон",
+        id: "dimon", name: "Димон", hp: 120,
         title: "ДИМОН СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Димона",
         img: "./dimon.jpg", fastImg: "./dimon2.jpg",
         sound: "./dimon_bottle.ogg", soundVolume: 0.2,
@@ -261,7 +262,7 @@ const heroes = [
         overRude: "💥 ДИМОН РАЗЪЕБАЛСЯ!", overClean: "💥 ДИМОН ПРОИГРАЛ!"
     },
     {
-        id: "vlad", name: "Влад",
+        id: "vlad", name: "Влад", hp: 90,
         title: "ВЛАД СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Влада",
         img: "./vlad.jpg", fastImg: "./vlad2.jpg",
         sound: "./vlad_bottle.ogg", soundVolume: 0.2,
@@ -270,7 +271,7 @@ const heroes = [
         overRude: "💥 ВЛАД РАЗЪЕБАЛСЯ!", overClean: "💥 ВЛАД ПРОИГРАЛ!"
     },
     {
-        id: "sanya", name: "Саня",
+        id: "sanya", name: "Саня", hp: 110,
         speedLabel: "Скорость Сани",
         img: "./sanya.jpg", fastImg: "./sanya2.jpg",
         sound: "./sanya_bottle.ogg", soundVolume: 0.2,
@@ -307,7 +308,8 @@ let best = 0;
 let timer = null;
 let keys = {};
 let inMenu = true, soundOn = true;
-let mode = "solo"; // "solo" или "duel"
+let mode = "solo"; // "solo", "duel" или "boss"
+let pendingMode = "solo";
 const duel = { p: [], count: 0, winner: null };
 let duelWins = [0, 0];
 const net = { role: null, host: false, peer: null, pc: null, conn: null, keys: {}, guestKeys: null };
@@ -330,6 +332,13 @@ try {
 
 function updateMessage() {
     const message = document.getElementById("message");
+    if (mode === "boss") {
+        const rude = swearingEnabled;
+        if (!gameOver) message.textContent = rude ? "💥 ПИЗДЕЛКА С НИКОЛЕЙ! Собирай бутылки, пробел — удар" : "💥 ДРАКА С НИКОЛЕЙ! Собирай бутылки, пробел — удар";
+        else if (bs.win) message.textContent = (rude ? "💀 НИКОЛЯ РАЗЪЕБАН! Победил " : "💀 НИКОЛЯ ПОБЕЖДЁН! Победил ") + bs.hero.name;
+        else message.textContent = (rude ? bs.hero.overRude : bs.hero.overClean) + " Николя победил";
+        return;
+    }
     if (mode === "duel") {
         if (!gameOver) {
             message.textContent = net.role ? "⚔️ ОНЛАЙН-ДУЭЛЬ! Управление: стрелки или W A S D" : "⚔️ ДУЭЛЬ! Игрок 1 — W A S D, игрок 2 — стрелки";
@@ -375,7 +384,7 @@ const codeToDir = {
 };
 
 function setDirection(dir) {
-    if (inMenu || mode === "duel") return;
+    if (inMenu || mode === "duel" || mode === "boss") return;
     direction = dir;
     started = true;
 }
@@ -406,6 +415,11 @@ document.addEventListener("keydown", function(e) {
         return;
     }
 
+    if (mode === "boss") {
+        const bd = bossKeyMap[e.code];
+        if (bd && bs) { e.preventDefault(); bs.keys[bd] = true; }
+        return;
+    }
     if (mode === "duel") {
         if (net.role) {
             const nd = duelMaps[0][e.code] || duelMaps[1][e.code];
@@ -429,6 +443,11 @@ document.addEventListener("keydown", function(e) {
 document.addEventListener("keyup", function(e) {
     const dir = codeToDir[e.code];
     if (dir) keys[dir] = false;
+    if (mode === "boss" && bs) {
+        const bd = bossKeyMap[e.code];
+        if (bd) bs.keys[bd] = false;
+        return;
+    }
     if (mode === "duel") {
         if (net.role) {
             const nd = duelMaps[0][e.code] || duelMaps[1][e.code];
@@ -481,6 +500,7 @@ const soundBtn = document.getElementById("soundBtn");
 const swearBtn = document.getElementById("swearBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 const versusBtn = document.getElementById("versusBtn");
+const bossBtn = document.getElementById("bossBtn");
 const duelBtn = document.getElementById("duelBtn");
 const onlineBtn = document.getElementById("onlineBtn");
 const leaveBtn = document.getElementById("leaveBtn");
@@ -503,11 +523,12 @@ function showMenu() {
     inMenu = true;
     keys = {};
     duel.p.forEach(function(q) { q.keys = {}; });
+    if (bs) bs.keys = {};
     menuEl.classList.remove("hidden");
     playBtn.textContent = resumable() ? "▶️ Продолжить" : "▶️ Играть";
     const online = !!net.role;
     newGameBtn.style.display = resumable() && !online ? "" : "none";
-    versusBtn.style.display = online ? "none" : "";
+    versusBtn.style.display = bossBtn.style.display = online ? "none" : "";
     leaveBtn.style.display = online ? "" : "none";
     if (online) playBtn.textContent = "▶️ В игру";
     refreshSettings();
@@ -518,6 +539,7 @@ function hideMenu() {
     inMenu = false;
     keys = {};
     duel.p.forEach(function(q) { q.keys = {}; });
+    if (bs) bs.keys = {};
     menuEl.classList.add("hidden");
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 }
@@ -529,6 +551,7 @@ function applyLabels() {
     document.getElementById("menuTitle").textContent = "🍾 " + name + " 🍾";
     document.title = name.charAt(0) + name.slice(1).toLowerCase();
     versusBtn.textContent = rude ? "🔥 Ебашить с кентом" : "🤝 Играть с другом";
+    bossBtn.textContent = rude ? "💀 Пизделка с Николей" : "💀 Драка с Николей";
     document.getElementById("versusTitle").textContent = rude ? "Ебашить с кентом" : "Играть с другом";
 }
 
@@ -552,6 +575,7 @@ function toggleSwearing() {
 
 // ---------- Дуэль ----------
 function restartAny() {
+    if (mode === "boss") { startBoss(bs.hero); return; }
     if (mode !== "duel") { restart(); return; }
     if (net.role === "guest") { if (gameOver) netSend({ t: "r" }); return; }
     if (net.role === "host" && !gameOver) return;
@@ -600,20 +624,24 @@ function updateDuel() {
 
     const dead = [false, false];
     duel.p.forEach(function(q, i) {
+        q.px = q.x; q.py = q.y;
         let nx = q.x, ny = q.y;
         if (q.direction === "up") ny -= q.speed;
         if (q.direction === "down") ny += q.speed;
         if (q.direction === "left") nx -= q.speed;
         if (q.direction === "right") nx += q.speed;
-        if (nx < 0 || ny < 0 || nx + playerSize > canvas.width || ny + playerSize > canvas.height) dead[i] = true;
-        else { q.x = nx; q.y = ny; }
+        if (nx < 0 || ny < 0 || nx + playerSize > canvas.width || ny + playerSize > canvas.height) {
+            dead[i] = true;
+            q.x = Math.max(0, Math.min(canvas.width - playerSize, nx));
+            q.y = Math.max(0, Math.min(canvas.height - playerSize, ny));
+        } else { q.x = nx; q.y = ny; }
     });
     if (dead[0] || dead[1]) { endDuel(dead); return; }
 
     for (let i = 0; i < 2; i++) {
         const q = duel.p[i];
-        if (q.x < bottleX + bottleSize && q.x + playerSize > bottleX &&
-            q.y < bottleY + bottleSize && q.y + playerSize > bottleY) {
+        if (Math.min(q.px, q.x) < bottleX + bottleSize && Math.max(q.px, q.x) + playerSize > bottleX &&
+            Math.min(q.py, q.y) < bottleY + bottleSize && Math.max(q.py, q.y) + playerSize > bottleY) {
             q.score++;
             const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
             if (soundOn) { sound.currentTime = 0; sound.play().catch(function() {}); }
@@ -1187,27 +1215,401 @@ function renderScores() {
 
 document.getElementById("nameBtn").addEventListener("click", function() { askName(); refreshSettings(); });
 
+// ---------- Боссфайт ----------
+const BOSS = {
+    name: "Николя", img: "./nikolya.jpg", hp: 1800, size: 220,
+    stageNames: ["Разминка", "Злость", "Ярость", "Последний вздох"]
+};
+// какой файл звучит при какой атаке и при ударе по боссу (можно поменять названия файлов местами)
+const BOSS_SOUND_FILES = {
+    pants: "./boss_pants.ogg", bottle: "./boss_bottle.ogg", burp: "./boss_burp.ogg",
+    stink: "./boss_stink.ogg",        // фраза «я воняю» при пуске облака дыма
+    shawarma: "./boss_shawarma.ogg",  // бросок шаурмы
+    hurt: ["./boss_hurt1.ogg", "./boss_hurt2.ogg", "./boss_hurt3.ogg"]
+};
+// нунчаки открываются по числу собранных бутылок
+const NUNCHAKU = [
+    { name: "Деревянные нунчаки", need: 0, dmg: 10, range: 110, cd: 0.55, color: "#c8914a" },
+    { name: "Железные нунчаки", need: 4, dmg: 16, range: 125, cd: 0.50, color: "#c0c8d4" },
+    { name: "Золотые нунчаки", need: 10, dmg: 26, range: 140, cd: 0.45, color: "#ffd54a" },
+    { name: "Огненные нунчаки", need: 18, dmg: 40, range: 160, cd: 0.40, color: "#ff6a2a" }
+];
+const HERO_MOVE = [1, 1.1, 1.2, 1.35];   // скорость героя по стадиям
+const HERO_DMG = [1, 1.1, 1.25, 1.5];    // сила удара по стадиям
+
+const bossImg = new Image();
+bossImg.src = BOSS.img;
+bossImg.onload = function() { draw(); };
+const bossSounds = {};
+function makeBossSound(src) { const a = new Audio(src); a.volume = 0.35; return a; }
+bossSounds.pants = makeBossSound(BOSS_SOUND_FILES.pants);
+bossSounds.bottle = makeBossSound(BOSS_SOUND_FILES.bottle);
+bossSounds.burp = makeBossSound(BOSS_SOUND_FILES.burp);
+bossSounds.stink = makeBossSound(BOSS_SOUND_FILES.stink);
+bossSounds.shawarma = makeBossSound(BOSS_SOUND_FILES.shawarma);
+bossSounds.hurt = BOSS_SOUND_FILES.hurt.map(makeBossSound);
+function playBoss(name) {
+    if (!soundOn) return;
+    let a = bossSounds[name];
+    if (Array.isArray(a)) a = a[Math.floor(Math.random() * a.length)];
+    try { a.currentTime = 0; a.play().catch(function() {}); } catch (e) {}
+}
+
+let bs = null;
+const bossKeyMap = {
+    ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right", Space: "atk", KeyF: "atk"
+};
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function heroStage() { const p = bs.hp / bs.maxHp; return p > 0.65 ? 0 : p > 0.35 ? 1 : p > 0.15 ? 2 : 3; }
+function bossStage() { const p = bs.boss.hp / BOSS.hp; return p > 0.7 ? 0 : p > 0.4 ? 1 : p > 0.15 ? 2 : 3; }
+function heroCenter() { return { x: bs.x + playerSize / 2, y: bs.y + playerSize / 2 }; }
+function bossCenter() { return { x: bs.boss.x + BOSS.size / 2, y: bs.boss.y + BOSS.size / 2 }; }
+
+function startBoss(h) {
+    mode = "boss";
+    clearInterval(timer);
+    const W = canvas.width, H = canvas.height;
+    bs = {
+        hero: h, maxHp: h.hp || 100, hp: h.hp || 100,
+        x: W / 2 - playerSize / 2, y: H - 220, keys: {}, inv: 0, cd: 0, swing: 0, hurtFlash: 0,
+        bottles: 0, tier: 0, over: false, win: false, hStage: 0, t: 0,
+        banner: { t: 3, text: "Собирай бутылки: за них открываются нунчаки. Пробел — удар" },
+        boss: { hp: BOSS.hp, x: W / 2 - BOSS.size / 2, y: 50, dir: 1, cd: 2, stage: 0, shake: 0, flash: 0, hurtCd: 0 },
+        pants: [], cells: [], clouds: [], shawarmas: []
+    };
+    gameOver = false; started = true;
+    newBottle();
+    setBossHud();
+    updateMessage();
+    draw();
+    timer = setInterval(update, 30);
+}
+
+function setBossHud() {
+    const st = heroStage();
+    document.getElementById("score").textContent = "Бутылок: " + bs.bottles + "   |   " + NUNCHAKU[bs.tier].name;
+    document.getElementById("speed").textContent = "Здоровье: " + Math.ceil(bs.hp) + "/" + bs.maxHp + "  ·  стадия " + (st + 1);
+    document.getElementById("best").textContent = BOSS.name + ": " + Math.ceil(bs.boss.hp) + "/" + BOSS.hp + "  ·  стадия " + (bs.boss.stage + 1);
+}
+
+function hurtHero(d, soft) {
+    if (bs.over) return;
+    if (!soft) { if (bs.inv > 0) return; bs.inv = 0.8; }
+    bs.hp = Math.max(0, bs.hp - d);
+    bs.hurtFlash = 0.15;
+    if (bs.hp <= 0) endBoss(false);
+}
+
+function damageBoss(d) {
+    const B = bs.boss;
+    B.hp = Math.max(0, B.hp - d);
+    B.flash = 0.15; B.shake = 0.25;
+    if (B.hurtCd <= 0) { playBoss("hurt"); B.hurtCd = 0.35; }
+    if (B.hp <= 0) endBoss(true);
+}
+
+function endBoss(win) {
+    bs.over = true; bs.win = win;
+    gameOver = true;
+    clearInterval(timer);
+    setBossHud();
+    updateMessage();
+    draw();
+}
+
+function swingNunchaku() {
+    const n = NUNCHAKU[bs.tier];
+    bs.cd = n.cd; bs.swing = 0.28;
+    const a = heroCenter(), b = bossCenter();
+    if (Math.hypot(a.x - b.x, a.y - b.y) <= n.range + BOSS.size / 2 - 20) {
+        damageBoss(Math.round(n.dmg * HERO_DMG[heroStage()]));
+    }
+}
+
+function bossAttack(st, force) {
+    const types = st === 0 ? ["pants", "bottle", "shawarma"] : ["pants", "bottle", "burp", "shawarma"];
+    const type = force || types[Math.floor(Math.random() * types.length)];
+    const c = bossCenter(), t = heroCenter();
+    playBoss(type);
+    if (type === "pants") {
+        const n = [1, 3, 5, 7][st], base = Math.atan2(t.y - c.y, t.x - c.x), sp = [260, 300, 340, 400][st];
+        for (let i = 0; i < n; i++) {
+            const a = base + (i - (n - 1) / 2) * 0.28;
+            bs.pants.push({ x: c.x, y: c.y + 40, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: 0, spin: (i % 2 ? -1 : 1) * 8 });
+        }
+    } else if (type === "bottle") {
+        const n = [1, 2, 3, 4][st], total = [1.1, 1.0, 0.9, 0.8][st];
+        const cols = Math.floor(canvas.width / 100), rows = Math.floor(canvas.height / 100);
+        const used = {};
+        const c0 = clamp(Math.floor(t.x / 100), 0, cols - 1), r0 = clamp(Math.floor(t.y / 100), 0, rows - 1);
+        let guard = 0;
+        while (Object.keys(used).length < n && guard++ < 60) {
+            const first = Object.keys(used).length === 0;
+            const cc = first ? c0 : clamp(c0 + Math.floor(Math.random() * 5) - 2, 0, cols - 1);
+            const rr = first ? r0 : clamp(r0 + Math.floor(Math.random() * 5) - 2, 0, rows - 1);
+            used[cc + "_" + rr] = [cc, rr];
+        }
+        Object.keys(used).forEach(function(k) {
+            bs.cells.push({ c: used[k][0], r: used[k][1], t: total, total: total, done: false, boom: 0 });
+        });
+    } else if (type === "shawarma") {
+        // шаурма: медленная, но наводится на героя
+        const n = [1, 1, 2, 3][st], sp = [170, 190, 210, 230][st], base = Math.atan2(t.y - c.y, t.x - c.x);
+        for (let i = 0; i < n; i++) {
+            const a = base + (i - (n - 1) / 2) * 0.7;
+            bs.shawarmas.push({ x: c.x, y: c.y + 40, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, sp: sp, rot: 0, life: 5 });
+        }
+    } else {
+        setTimeout(function() { if (bs && !bs.over) playBoss("stink"); }, 450);
+        const dx = t.x - c.x, dy = t.y - c.y, l = Math.hypot(dx, dy) || 1;
+        bs.clouds.push({ x: c.x, y: c.y + 80, vx: dx / l * 95, vy: dy / l * 95, r: [60, 70, 85, 100][st], life: 5, tick: 0 });
+    }
+}
+
+function updateBoss() {
+    if (!bs || bs.over || inMenu) return;
+    const dt = 0.03, B = bs.boss, W = canvas.width, H = canvas.height;
+    bs.t += dt;
+    const hs = heroStage();
+    if (hs !== bs.hStage) {
+        bs.hStage = hs;
+        bs.banner = { t: 2, text: "💢 " + bs.hero.name + ": стадия " + (hs + 1) };
+    }
+
+    // движение героя
+    const vx = (bs.keys.right ? 1 : 0) - (bs.keys.left ? 1 : 0), vy = (bs.keys.down ? 1 : 0) - (bs.keys.up ? 1 : 0);
+    if (vx || vy) {
+        const l = Math.hypot(vx, vy), sp = 210 * HERO_MOVE[hs] * dt;
+        bs.x += vx / l * sp; bs.y += vy / l * sp;
+    }
+    bs.x = clamp(bs.x, 0, W - playerSize); bs.y = clamp(bs.y, 0, H - playerSize);
+    bs.inv = Math.max(0, bs.inv - dt); bs.cd = Math.max(0, bs.cd - dt); bs.swing = Math.max(0, bs.swing - dt);
+    bs.hurtFlash = Math.max(0, bs.hurtFlash - dt);
+    B.hurtCd = Math.max(0, B.hurtCd - dt); B.flash = Math.max(0, B.flash - dt); B.shake = Math.max(0, B.shake - dt);
+    bs.banner.t = Math.max(0, bs.banner.t - dt);
+
+    // удар нунчаками
+    if (bs.keys.atk && bs.cd <= 0) swingNunchaku();
+    if (bs.over) return;
+
+    // бутылка
+    if (bs.x < bottleX + bottleSize && bs.x + playerSize > bottleX && bs.y < bottleY + bottleSize && bs.y + playerSize > bottleY) {
+        bs.bottles++;
+        if (soundOn) {
+            const snd = bs.bottles >= 10 ? bs.hero.specialSound : bs.hero.normalSound;
+            snd.currentTime = 0; snd.play().catch(function() {});
+        }
+        let tier = 0;
+        NUNCHAKU.forEach(function(n, i) { if (bs.bottles >= n.need) tier = i; });
+        if (tier > bs.tier) { bs.tier = tier; bs.banner = { t: 2.5, text: "🔓 Новые нунчаки: " + NUNCHAKU[tier].name }; }
+        newBottle();
+    }
+
+    // стадия босса и его поведение
+    const st = bossStage();
+    if (st !== B.stage) {
+        B.stage = st; B.cd = 1; B.shake = 0.6;
+        bs.banner = { t: 2.5, text: "СТАДИЯ " + (st + 1) + ": " + BOSS.stageNames[st].toUpperCase() };
+    }
+    B.x += B.dir * [90, 120, 150, 190][st] * dt;
+    if (B.x < 0) { B.x = 0; B.dir = 1; }
+    if (B.x > W - BOSS.size) { B.x = W - BOSS.size; B.dir = -1; }
+    B.cd -= dt;
+    if (B.cd <= 0) { bossAttack(st); B.cd = [2.2, 1.8, 1.4, 1.0][st] * (0.8 + Math.random() * 0.4); }
+
+    // трусы
+    const hc = heroCenter();
+    bs.pants = bs.pants.filter(function(p) {
+        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
+        if (Math.hypot(p.x - hc.x, p.y - hc.y) < 60) { hurtHero(10); return false; }
+        return p.x > -80 && p.x < W + 80 && p.y > -80 && p.y < H + 80;
+    });
+    // шаурма (самонаводящаяся)
+    bs.shawarmas = bs.shawarmas.filter(function(sw) {
+        const want = Math.atan2(hc.y - sw.y, hc.x - sw.x), cur = Math.atan2(sw.vy, sw.vx);
+        let d = want - cur;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const na = cur + clamp(d, -1.6 * dt, 1.6 * dt);
+        sw.vx = Math.cos(na) * sw.sp; sw.vy = Math.sin(na) * sw.sp;
+        sw.x += sw.vx * dt; sw.y += sw.vy * dt; sw.rot += 5 * dt; sw.life -= dt;
+        if (Math.hypot(sw.x - hc.x, sw.y - hc.y) < 62) { hurtHero(14); return false; }
+        return sw.life > 0;
+    });
+    // бутылки в клетки
+    bs.cells = bs.cells.filter(function(c) {
+        if (!c.done) {
+            c.t -= dt;
+            if (c.t <= 0) {
+                c.done = true; c.boom = 0.35;
+                if (bs.x < c.c * 100 + 100 - 12 && bs.x + playerSize > c.c * 100 + 12 && bs.y < c.r * 100 + 100 - 12 && bs.y + playerSize > c.r * 100 + 12) hurtHero(18);
+            }
+            return true;
+        }
+        c.boom -= dt;
+        return c.boom > 0;
+    });
+    // облака дыма
+    bs.clouds = bs.clouds.filter(function(cl) {
+        cl.x += cl.vx * dt; cl.y += cl.vy * dt; cl.r += 4 * dt; cl.life -= dt; cl.tick -= dt;
+        if (Math.hypot(hc.x - cl.x, hc.y - cl.y) < cl.r + 20 && cl.tick <= 0) { hurtHero(5, true); cl.tick = 0.5; }
+        return cl.life > 0;
+    });
+    // касание босса
+    if (!bs.over && bs.x + 20 < B.x + BOSS.size - 20 && bs.x + playerSize - 20 > B.x + 20 && bs.y + 20 < B.y + BOSS.size - 20 && bs.y + playerSize - 20 > B.y + 20) hurtHero(12);
+
+    setBossHud();
+    draw();
+}
+
+function drawBar(x, y, w, h, frac, color, marks) {
+    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.fillStyle = color; ctx.fillRect(x, y, w * Math.max(0, frac), h);
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    (marks || []).forEach(function(m) { ctx.fillRect(x + w * m - 1, y, 2, h); });
+}
+
+function drawPants(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = "#ff5fa2"; ctx.fillRect(-22, -16, 44, 10);
+    ctx.beginPath();
+    ctx.moveTo(-22, -6); ctx.lineTo(22, -6); ctx.lineTo(22, 8); ctx.lineTo(7, 20); ctx.lineTo(0, 6); ctx.lineTo(-7, 20); ctx.lineTo(-22, 8);
+    ctx.closePath(); ctx.fillStyle = "#ffffff"; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = "#ff5fa2"; ctx.stroke();
+    ctx.restore();
+}
+
+function drawBoss() {
+    const W = canvas.width, H = canvas.height, B = bs.boss;
+    // сетка
+    ctx.strokeStyle = "rgba(255,255,255,0.07)"; ctx.lineWidth = 1;
+    for (let gx = 0; gx <= W; gx += 100) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+    for (let gy = 0; gy <= H; gy += 100) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+
+    // клетки, в которые летит бутылка
+    bs.cells.forEach(function(c) {
+        const cx0 = c.c * 100, cy0 = c.r * 100;
+        if (!c.done) {
+            const p = 1 - c.t / c.total;
+            ctx.fillStyle = "rgba(255,60,60," + (0.18 + 0.15 * Math.sin(bs.t * 18)) + ")";
+            ctx.fillRect(cx0, cy0, 100, 100);
+            ctx.strokeStyle = "#ff4040"; ctx.lineWidth = 3; ctx.strokeRect(cx0 + 2, cy0 + 2, 96, 96);
+            ctx.font = "44px Arial"; ctx.fillText("🍾", cx0 + 28, cy0 + 62 - (1 - p) * 260);
+        } else {
+            ctx.fillStyle = "rgba(255,150,0," + (c.boom / 0.35 * 0.75) + ")"; ctx.fillRect(cx0, cy0, 100, 100);
+            ctx.font = "56px Arial"; ctx.fillText("💥", cx0 + 18, cy0 + 66);
+        }
+    });
+
+    // бутылка-бонус
+    ctx.font = bottleSize + "px Arial";
+    ctx.fillText("🍾", bottleX, bottleY + bottleSize * 0.83);
+
+    // облака дыма
+    bs.clouds.forEach(function(cl) {
+        const fade = Math.min(1, cl.life / 1.2);
+        for (let i = 0; i < 6; i++) {
+            const a = i * 1.05 + bs.t * 0.8;
+            ctx.fillStyle = "rgba(120,150,90," + (0.22 * fade) + ")";
+            ctx.beginPath(); ctx.arc(cl.x + Math.cos(a) * cl.r * 0.45, cl.y + Math.sin(a) * cl.r * 0.45, cl.r * 0.6, 0, Math.PI * 2); ctx.fill();
+        }
+    });
+
+    // босс
+    const stageRed = [0, 0.18, 0.34, 0.5][B.stage] + (B.flash > 0 ? 0.35 : 0);
+    const sh = B.shake > 0 ? Math.min(1, B.shake * 4) * 8 : 0;
+    const bx = B.x + (Math.random() - 0.5) * sh, by = B.y + (Math.random() - 0.5) * sh;
+    if (bossImg.complete && bossImg.naturalWidth > 0) {
+        ctx.drawImage(bossImg, bx, by, BOSS.size, BOSS.size);
+        if (stageRed > 0) {
+            ctx.save(); ctx.globalCompositeOperation = "source-atop";
+            ctx.fillStyle = "rgba(255,0,0," + stageRed + ")"; ctx.fillRect(bx, by, BOSS.size, BOSS.size); ctx.restore();
+        }
+    } else {
+        ctx.fillStyle = "#8a2be2"; ctx.fillRect(bx, by, BOSS.size, BOSS.size);
+        ctx.fillStyle = "white"; ctx.font = "30px Arial"; ctx.fillText(BOSS.name.toUpperCase(), bx + 20, by + 120);
+    }
+
+    // трусы
+    bs.pants.forEach(drawPants);
+    bs.shawarmas.forEach(function(sw) {
+        ctx.save(); ctx.translate(sw.x, sw.y); ctx.rotate(sw.rot);
+        ctx.font = "54px Arial"; ctx.textAlign = "center"; ctx.fillText("🌯", 0, 18);
+        ctx.restore();
+    });
+
+    // герой (мигает после удара)
+    if (bs.inv <= 0 || Math.floor(bs.t * 14) % 2 === 0) {
+        const hs = heroStage();
+        drawHero(bs.hero, bs.x, bs.y, hs === 3 ? 12 : 5, hs === 1 ? 0.3 : hs === 2 ? 0.55 : 0);
+    }
+
+    // нунчаки
+    const n = NUNCHAKU[bs.tier], hc = heroCenter();
+    const R = n.range * 0.8;
+    if (bs.swing > 0) {
+        const ang = (1 - bs.swing / 0.28) * Math.PI * 2;
+        ctx.strokeStyle = n.color; ctx.globalAlpha = 0.25; ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.arc(hc.x, hc.y, R, ang - 1.6, ang); ctx.stroke(); ctx.globalAlpha = 1;
+        for (let k = 0; k < 2; k++) {
+            const a = ang + k * Math.PI, tx = hc.x + Math.cos(a) * R, ty = hc.y + Math.sin(a) * R;
+            ctx.strokeStyle = "#aaaaaa"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(hc.x, hc.y); ctx.lineTo(tx, ty); ctx.stroke();
+            ctx.strokeStyle = n.color; ctx.lineWidth = 9; ctx.beginPath();
+            ctx.moveTo(tx, ty); ctx.lineTo(tx - Math.sin(a) * 38, ty + Math.cos(a) * 38); ctx.stroke();
+        }
+    } else {
+        ctx.strokeStyle = n.color; ctx.lineWidth = 8; ctx.beginPath();
+        ctx.moveTo(bs.x + playerSize + 4, bs.y + 20); ctx.lineTo(bs.x + playerSize + 4, bs.y + 60); ctx.stroke();
+    }
+
+    // полоски здоровья
+    const bw = 760, bxp = (W - bw) / 2;
+    drawBar(bxp, 14, bw, 20, B.hp / BOSS.hp, ["#7ad84a", "#e6d23a", "#f08a2a", "#e03030"][B.stage], [0.7, 0.4, 0.15]);
+    ctx.fillStyle = "white"; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
+    ctx.fillText(BOSS.name.toUpperCase() + "  ·  стадия " + (B.stage + 1) + ": " + BOSS.stageNames[B.stage], W / 2, 52);
+    ctx.textAlign = "start";
+    drawBar(20, H - 40, 320, 20, bs.hp / bs.maxHp, ["#4ad88a", "#e6d23a", "#f08a2a", "#e03030"][heroStage()], [0.65, 0.35, 0.15]);
+    ctx.fillStyle = "white"; ctx.font = "bold 16px Arial";
+    ctx.fillText(bs.hero.name + "  " + Math.ceil(bs.hp) + "/" + bs.maxHp + "  ·  стадия " + (heroStage() + 1), 24, H - 48);
+    const nextN = NUNCHAKU[bs.tier + 1];
+    ctx.fillText("🍾 " + bs.bottles + (nextN ? " → " + nextN.name + " при " + nextN.need : "  ·  макс. нунчаки"), 24, H - 10);
+
+    // надпись о событии
+    if (bs.banner.t > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(W / 2 - 330, 70, 660, 46);
+        ctx.fillStyle = "#ffd54a"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
+        ctx.fillText(bs.banner.text, W / 2, 102); ctx.textAlign = "start";
+    }
+    if (bs.over) {
+        drawBanner(bs.win ? ["🏆 ПОБЕДА!", bs.hero.name + " победил: " + BOSS.name + "  |  Enter — ещё раз"] : ["💥 ПОРАЖЕНИЕ", BOSS.name + " победил  |  Enter — ещё раз"]);
+    }
+}
+
 function chooseHero(h) {
     hero = h;
     try { localStorage.setItem("ilya_hero", h.id); } catch (e) {}
     applyHero();
     hideMenu();
-    restart();
+    if (pendingMode === "boss") startBoss(h);
+    else restart();
 }
 
 heroes.forEach(function(h) {
     const card = document.createElement("button");
     card.className = "hero-card";
-    card.innerHTML = '<img src="' + h.img + '" alt=""><span>' + h.name + "</span>";
+    card.innerHTML = '<img src="' + h.img + '" alt=""><span>' + h.name + "</span><small>❤️ " + h.hp + "</small>";
     card.addEventListener("click", function() { chooseHero(h); });
     heroList.appendChild(card);
 });
 
 playBtn.addEventListener("click", function() {
     if (net.role || resumable()) hideMenu();
-    else showScreen("heroes");
+    else { pendingMode = "solo"; showScreen("heroes"); }
 });
-newGameBtn.addEventListener("click", function() { showScreen("heroes"); });
+newGameBtn.addEventListener("click", function() { pendingMode = "solo"; showScreen("heroes"); });
+bossBtn.addEventListener("click", function() { pendingMode = "boss"; showScreen("heroes"); });
 versusBtn.addEventListener("click", function() { showScreen("versus"); });
 document.getElementById("settingsBtn").addEventListener("click", function() { showScreen("settings"); });
 document.querySelectorAll("[data-back]").forEach(function(btn) {
@@ -1225,7 +1627,7 @@ document.getElementById("menuBtn").addEventListener("click", function() {
 });
 
 function newBottle() {
-    const occupied = mode === "duel" ? duel.p : [{ x: x, y: y }];
+    const occupied = mode === "duel" ? duel.p : mode === "boss" ? [{ x: bs.x, y: bs.y }] : [{ x: x, y: y }];
     let attempts = 0;
     do {
         const cols = Math.floor((canvas.width - bottleSize - 40) / 20) + 1;
@@ -1269,6 +1671,7 @@ function calcSpeed(n) {
 
 function update() {
     if (mode === "duel") { updateDuel(); return; }
+    if (mode === "boss") { updateBoss(); return; }
     if (gameOver || !started || inMenu) return;
     if (keys.up) direction = "up";
     else if (keys.down) direction = "down";
@@ -1284,14 +1687,19 @@ function update() {
     if (nextX < 0 || nextY < 0 ||
         nextX + playerSize > canvas.width ||
         nextY + playerSize > canvas.height) {
+        // на большой скорости шаг больше зазора до стены: ставим героя вплотную к ней
+        x = Math.max(0, Math.min(canvas.width - playerSize, nextX));
+        y = Math.max(0, Math.min(canvas.height - playerSize, nextY));
         loseGame();
         return;
     }
 
+    const prevX = x, prevY = y;
     x = nextX; y = nextY;
 
-    if (x < bottleX + bottleSize && x + playerSize > bottleX &&
-        y < bottleY + bottleSize && y + playerSize > bottleY) {
+    // бутылка считается подобранной, если герой задел её по пути за этот шаг (а не только в конечной точке)
+    if (Math.min(prevX, x) < bottleX + bottleSize && Math.max(prevX, x) + playerSize > bottleX &&
+        Math.min(prevY, y) < bottleY + bottleSize && Math.max(prevY, y) + playerSize > bottleY) {
         score++;
         const sound = score >= 10 ? hero.specialSound : hero.normalSound;
         if (soundOn) {
@@ -1345,6 +1753,7 @@ function drawBanner(lines) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (mode === "duel") { drawDuel(); return; }
+    if (mode === "boss") { drawBoss(); return; }
     ctx.font = bottleSize + "px Arial";
     ctx.fillText("🍾", bottleX, bottleY + bottleSize * 0.83);
 
