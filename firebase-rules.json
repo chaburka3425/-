@@ -1,0 +1,13 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "best": {
+      ".read": true,
+      "$k": {
+        ".write": "newData.exists() && (!data.exists() || newData.child('s').val() > data.child('s').val())",
+        ".validate": "newData.hasChildren(['n','h','s','d']) && newData.child('n').isString() && newData.child('n').val().length <= 16 && newData.child('h').isString() && newData.child('h').val().length <= 20 && newData.child('s').isNumber() && newData.child('s').val() >= 1 && newData.child('s').val() <= 1000 && newData.child('d').isNumber()"
+      }
+    }
+  }
+}

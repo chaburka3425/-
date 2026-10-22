@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Собираем бутылки</title>
+<title>Ботл челендж</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 * { box-sizing: border-box; }
@@ -19,8 +19,8 @@ h1 { color: lime; font-size: clamp(20px, 4vw, 30px); }
 #score, #speed, #best { margin: 8px; }
 #wrap {
     position: relative;
-    width: min(1200px, 95vw, max(480px, calc((100vh - 220px) * 1.6)));
-    margin: 15px auto;
+    width: min(1100px, calc(95vw - 330px), max(480px, calc((100vh - 220px) * 1.6)));
+    margin: 0;
     border: 3px solid lime;
     background: #263448;
     line-height: 0;
@@ -97,7 +97,17 @@ button {
 #joinCode { font-size: clamp(16px, 2.4vw, 26px); width: 7em; padding: 8px; text-transform: uppercase; text-align: center; border-radius: 8px; border: 2px solid lime; background: #171727; color: white; }
 #roomCode { text-align: center; font-weight: bold; }
 #netStatus { color: orange; text-align: center; }
-#scoreTable { border-collapse: collapse; width: min(580px, 88vw); font-size: clamp(12px, 1.9vw, 20px); line-height: 1.25; }
+#stage { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 14px; margin: 15px auto; }
+#board { width: 310px; background: #1d2638; border: 3px solid lime; padding: 10px; text-align: left; }
+#board h3 { margin: 0 0 8px; color: lime; text-align: center; }
+#boardNote { margin: 8px 0 0; font-size: 12px; color: #9aa7bd; text-align: center; line-height: 1.3; }
+#board .pick-row { margin-bottom: 8px; gap: 6px; }
+#board .hero-card.small { padding: 4px 10px; font-size: 13px; }
+@media (max-width: 900px) {
+    #wrap { width: min(95vw, max(480px, calc((100vh - 220px) * 1.6))); }
+    #board { width: min(95vw, 600px); }
+}
+#scoreTable { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.3; }
 #scoreTable th { color: lime; text-align: left; border-bottom: 2px solid lime; padding: 4px 8px; }
 #scoreTable td { padding: 4px 8px; border-bottom: 1px solid #3a4a63; }
 #scoreTable tr.me td { background: rgba(0, 255, 0, 0.18); font-weight: bold; }
@@ -131,20 +141,25 @@ button {
 <h2 id="score">Собрано бутылок: 0</h2>
 <h3 id="speed"></h3>
 <h3 id="best">Рекорд: 0</h3>
+<div id="stage">
 <div id="wrap">
     <canvas id="game" width="1200" height="750"></canvas>
 
     <div id="menu">
         <div class="screen active" id="screen-main">
-            <h2>🎮 СОБИРАЕМ БУТЫЛКИ 🍾</h2>
+            <h2 id="menuTitle"></h2>
             <button class="menu-btn" id="playBtn">▶️ Играть</button>
             <button class="menu-btn secondary" id="newGameBtn">🆕 Новая игра</button>
-            <button class="menu-btn" id="duelBtn">⚔️ Дуэль 1×1</button>
-            <button class="menu-btn" id="onlineBtn">🌐 Играть по сети</button>
+            <button class="menu-btn" id="versusBtn"></button>
             <button class="menu-btn secondary" id="leaveBtn">🚪 Выйти из комнаты</button>
-            <button class="menu-btn" id="scoresBtn">🏆 Таблица рекордов</button>
             <button class="menu-btn" id="settingsBtn">⚙️ Настройки</button>
-            <button class="menu-btn" id="aboutBtn">ℹ️ Об игре</button>
+        </div>
+
+        <div class="screen" id="screen-versus">
+            <h2 id="versusTitle"></h2>
+            <button class="menu-btn" id="duelBtn">🖥 На одном устройстве</button>
+            <button class="menu-btn" id="onlineBtn">🌐 По сети</button>
+            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
         </div>
 
         <div class="screen" id="screen-heroes">
@@ -158,7 +173,7 @@ button {
             <p>Двое за одной клавиатурой: игрок 1 — W A S D, игрок 2 — стрелки. Бутылка одна на двоих, кто врезался в стену — проиграл.</p>
             <div id="duelPick"></div>
             <button class="menu-btn" id="duelStartBtn">⚔️ В бой!</button>
-            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
+            <button class="menu-btn secondary" data-back="versus">⬅️ Назад</button>
         </div>
 
         <div class="screen" id="screen-online">
@@ -189,15 +204,7 @@ button {
             <button class="menu-btn secondary" id="netBackBtn">⬅️ Назад</button>
         </div>
 
-        <div class="screen" id="screen-scores">
-            <h2>🏆 Таблица рекордов</h2>
-            <div id="scoreTabs" class="pick-row"></div>
-            <table id="scoreTable"></table>
-            <div class="pick-row">
-                <button class="menu-btn secondary" id="clearScoresBtn" style="width:auto;display:none">🗑 Очистить</button>
-                <button class="menu-btn secondary" data-back style="width:auto">⬅️ Назад</button>
-            </div>
-        </div>
+        
 
         <div class="screen" id="screen-settings">
             <h2>⚙️ Настройки</h2>
@@ -206,15 +213,15 @@ button {
             <button class="menu-btn" id="swearBtn"></button>
             <button class="menu-btn secondary" data-back>⬅️ Назад</button>
         </div>
-
-        <div class="screen" id="screen-about">
-            <h2>ℹ️ Об игре</h2>
-            <p>Собирай бутылки 🍾 и не врезайся в стены. С каждой бутылкой герой едет быстрее, а после десятой разгоняется ещё сильнее.</p>
-            <p>Управление: стрелки или WASD, на телефоне свайпы. Esc — меню.</p>
-            <p id="aboutBest"></p>
-            <button class="menu-btn secondary" data-back>⬅️ Назад</button>
-        </div>
     </div>
+</div>
+
+<aside id="board">
+    <h3>🏆 Таблица лидеров</h3>
+    <div id="scoreTabs" class="pick-row"></div>
+    <table id="scoreTable"></table>
+    <p id="boardNote"></p>
+</aside>
 </div>
 
 <div id="pad">
@@ -227,7 +234,6 @@ button {
 <p class="desktop-only">Управление: стрелки или WASD. Enter / пробел / R — начать заново. Esc — меню.</p>
 <p>На телефоне: свайпы по полю или кнопки.</p>
 <p id="message"></p>
-<button id="restartBtn">🔄 Начать заново</button>
 <button id="menuBtn">☰ Меню</button>
 
 <script>
@@ -238,7 +244,7 @@ const ctx = canvas.getContext("2d");
 const heroes = [
     {
         id: "ilya", name: "Илья",
-        title: "ИЛЬЯ СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Ильи",
+        speedLabel: "Скорость Ильи",
         img: "./player.jpg", fastImg: "./player2.jpg",
         sound: "./bottle.ogg", soundVolume: 0.2,
         fastSound: "./bottle10.ogg", fastSoundVolume: 0.1,
@@ -253,6 +259,24 @@ const heroes = [
         fastSound: "./dimon_bottle10.ogg", fastSoundVolume: 0.1,
         playRude: "НЕ ДАЙ ДИМОНУ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ДИМОНУ ПРОИГРАТЬ!",
         overRude: "💥 ДИМОН РАЗЪЕБАЛСЯ!", overClean: "💥 ДИМОН ПРОИГРАЛ!"
+    },
+    {
+        id: "vlad", name: "Влад",
+        title: "ВЛАД СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Влада",
+        img: "./vlad.jpg", fastImg: "./vlad2.jpg",
+        sound: "./vlad_bottle.ogg", soundVolume: 0.2,
+        fastSound: "./vlad_bottle10.ogg", fastSoundVolume: 0.1,
+        playRude: "НЕ ДАЙ ВЛАДУ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ВЛАДУ ПРОИГРАТЬ!",
+        overRude: "💥 ВЛАД РАЗЪЕБАЛСЯ!", overClean: "💥 ВЛАД ПРОИГРАЛ!"
+    },
+    {
+        id: "sanya", name: "Саня",
+        speedLabel: "Скорость Сани",
+        img: "./sanya.jpg", fastImg: "./sanya2.jpg",
+        sound: "./sanya_bottle.ogg", soundVolume: 0.2,
+        fastSound: "./sanya_bottle10.ogg", fastSoundVolume: 0.1,
+        playRude: "НЕ ДАЙ САНЕ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ САНЕ ПРОИГРАТЬ!",
+        overRude: "💥 САНЯ РАЗЪЕБАЛСЯ!", overClean: "💥 САНЯ ПРОИГРАЛ!"
     }
 ];
 
@@ -337,7 +361,6 @@ function writeBest(id, v) {
     try { localStorage.setItem(bestKey(id), String(v)); } catch (e) {}
 }
 function applyHero() {
-    document.getElementById("title").textContent = "🎮 " + hero.title + " 🍾";
     best = readBest(hero.id);
 }
 
@@ -363,22 +386,13 @@ document.addEventListener("keydown", function(e) {
         if (!e.repeat) toggleSwearing();
         return;
     }
-    // Секрет: Ctrl+Shift+L на экране рекордов показывает/прячет кнопку «Очистить»
-    if (e.ctrlKey && e.shiftKey && e.code === "KeyL") {
-        e.preventDefault();
-        if (!e.repeat && inMenu && currentScreen === "scores") {
-            const cb = document.getElementById("clearScoresBtn");
-            cb.style.display = cb.style.display === "none" ? "" : "none";
-        }
-        return;
-    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     // Esc: открыть меню / вернуться назад / продолжить игру
     if (e.code === "Escape") {
         e.preventDefault();
         if (!inMenu) { if (net.role && !gameOver) return; showMenu(); }
-        else if (currentScreen !== "main") showScreen("main");
+        else if (currentScreen !== "main") showScreen({ duel: "versus", online: "versus" }[currentScreen] || "main");
         else if (resumable()) hideMenu();
         return;
     }
@@ -459,12 +473,6 @@ canvas.addEventListener("pointerup", endSwipe);
 canvas.addEventListener("pointercancel", endSwipe);
 canvas.addEventListener("pointerleave", endSwipe);
 
-const restartBtn = document.getElementById("restartBtn");
-restartBtn.addEventListener("click", function() {
-    hideMenu();
-    restartAny();
-    restartBtn.blur(); // чтобы пробел/Enter потом не нажимали кнопку повторно
-});
 
 // ---------- Меню ----------
 const menuEl = document.getElementById("menu");
@@ -472,6 +480,7 @@ const playBtn = document.getElementById("playBtn");
 const soundBtn = document.getElementById("soundBtn");
 const swearBtn = document.getElementById("swearBtn");
 const newGameBtn = document.getElementById("newGameBtn");
+const versusBtn = document.getElementById("versusBtn");
 const duelBtn = document.getElementById("duelBtn");
 const onlineBtn = document.getElementById("onlineBtn");
 const leaveBtn = document.getElementById("leaveBtn");
@@ -486,15 +495,6 @@ function showScreen(name) {
     document.querySelectorAll(".screen").forEach(function(el) {
         el.classList.toggle("active", el.id === "screen-" + name);
     });
-    if (name === "scores") {
-        document.getElementById("clearScoresBtn").style.display = "none";
-        renderScores();
-    }
-    if (name === "about") {
-        document.getElementById("aboutBest").textContent = "🏆 Рекорды: " + heroes.map(function(h) {
-            return h.name + " — " + readBest(h.id);
-        }).join(", ");
-    }
     const first = document.querySelector("#screen-" + name + " button");
     if (first) first.focus();
 }
@@ -507,7 +507,7 @@ function showMenu() {
     playBtn.textContent = resumable() ? "▶️ Продолжить" : "▶️ Играть";
     const online = !!net.role;
     newGameBtn.style.display = resumable() && !online ? "" : "none";
-    duelBtn.style.display = onlineBtn.style.display = online ? "none" : "";
+    versusBtn.style.display = online ? "none" : "";
     leaveBtn.style.display = online ? "" : "none";
     if (online) playBtn.textContent = "▶️ В игру";
     refreshSettings();
@@ -522,7 +522,18 @@ function hideMenu() {
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 }
 
+function applyLabels() {
+    const rude = swearingEnabled;
+    const name = rude ? "БОТЛ ХУЙ ЧЕЛЕНДЖ" : "БОТЛ ЧЕЛЕНДЖ";
+    document.getElementById("title").textContent = "🍾 " + name + " 🍾";
+    document.getElementById("menuTitle").textContent = "🍾 " + name + " 🍾";
+    document.title = name.charAt(0) + name.slice(1).toLowerCase();
+    versusBtn.textContent = rude ? "🔥 Ебашить с кентом" : "🤝 Играть с другом";
+    document.getElementById("versusTitle").textContent = rude ? "Ебашить с кентом" : "Играть с другом";
+}
+
 function refreshSettings() {
+    applyLabels();
     soundBtn.textContent = "🔊 Звук: " + (soundOn ? "ВКЛ" : "ВЫКЛ");
     swearBtn.textContent = "🤬 Мат: " + (swearingEnabled ? "ВКЛ" : "ВЫКЛ");
     document.getElementById("nameBtn").textContent = "✏️ Имя: " + (playerName || "не задано");
@@ -562,7 +573,6 @@ function startDuel(remote) {
     duel.winner = null;
     gameOver = false; started = true;
     bottleX = W / 2 - bottleSize / 2; bottleY = H / 2 - bottleSize / 2;
-    document.getElementById("title").textContent = "⚔️ ДУЭЛЬ: " + duel.p[0].hero.name + " vs " + duel.p[1].hero.name;
     setDuelHud();
     updateMessage();
     draw();
@@ -1018,8 +1028,77 @@ document.getElementById("copyBtn").addEventListener("click", function() {
     try { navigator.clipboard.writeText(net.invite || ""); setNetStatus("Скопировано!"); }
     catch (e) { setNetStatus("Скопируй вручную из текста выше."); }
 });
-document.getElementById("netBackBtn").addEventListener("click", function() { showScreen("main"); });
+document.getElementById("netBackBtn").addEventListener("click", function() { showScreen("versus"); });
 leaveBtn.addEventListener("click", function() { netLeave(); });
+
+// ---------- Общая таблица лидеров (Firebase Realtime Database) ----------
+// Вставь сюда адрес своей базы, например: "https://bottles-123-default-rtdb.europe-west1.firebasedatabase.app"
+// Пока строка пустая, таблица работает только на этом устройстве.
+const BOARD_URL = "https://bottle-game-6ae2c-default-rtdb.europe-west1.firebasedatabase.app";
+let remoteScores = null;
+let boardError = false;
+
+function boardOn() { return !!BOARD_URL; }
+function boardBase() { return BOARD_URL.replace(/\/+$/, ""); }
+function boardKey(h, n) { return (h + "_" + n).replace(/[^A-Za-z0-9А-Яа-яЁё_-]/g, "_"); }
+
+function setBoardNote() {
+    const el = document.getElementById("boardNote");
+    if (!boardOn()) el.textContent = "📍 Пока видны только рекорды с этого устройства: общая таблица не подключена.";
+    else if (boardError) el.textContent = "⚠️ Нет связи с общей таблицей, показаны рекорды этого устройства.";
+    else el.textContent = "🌍 Общая таблица: тут рекорды всех игроков.";
+}
+
+async function fetchBoard() {
+    if (!boardOn()) return;
+    try {
+        const r = await fetch(boardBase() + "/best.json");
+        if (!r.ok) throw new Error("http " + r.status);
+        const data = await r.json();
+        remoteScores = Object.values(data || {}).filter(function(e) {
+            return e && typeof e.n === "string" && typeof e.s === "number" && typeof e.h === "string";
+        });
+        boardError = false;
+    } catch (e) { boardError = true; }
+    setBoardNote();
+    renderScores();
+}
+
+async function submitRemote(entry) {
+    if (!boardOn()) return;
+    try {
+        const url = boardBase() + "/best/" + encodeURIComponent(boardKey(entry.h, entry.n)) + ".json";
+        const cur = await (await fetch(url)).json();
+        if (!cur || cur.s < entry.s) {
+            const r = await fetch(url, { method: "PUT", body: JSON.stringify(entry) });
+            if (!r.ok) throw new Error("http " + r.status);
+        }
+        boardError = false;
+    } catch (e) { boardError = true; }
+    await fetchBoard();
+}
+
+// один раз отправляем в общую таблицу рекорды, накопленные на этом устройстве
+async function syncLocalOnce() {
+    if (!boardOn() || boardError) return;
+    let done = false;
+    try { done = localStorage.getItem("ilya_synced") === "1"; } catch (e) {}
+    if (done) return;
+    const best = {};
+    loadScores().forEach(function(e) {
+        const k = boardKey(e.h, e.n);
+        if (!best[k] || best[k].s < e.s) best[k] = e;
+    });
+    for (const k in best) await submitRemote(best[k]);
+    try { localStorage.setItem("ilya_synced", "1"); } catch (e) {}
+}
+
+function startBoard() {
+    setBoardNote();
+    if (!boardOn()) return;
+    fetchBoard().then(syncLocalOnce);
+    (function loop() { setTimeout(function() { fetchBoard().then(loop); }, 30000); })();
+}
 
 // ---------- Таблица рекордов (хранится в этом браузере) ----------
 const SCORES_KEY = "ilya_scores";
@@ -1056,6 +1135,8 @@ function recordScore(sc, h) {
     list.sort(function(a, b) { return b.s - a.s || a.d - b.d; });
     saveScores(list.slice(0, 50));
     lastScoreId = entry.d;
+    renderScores();
+    submitRemote(entry);
 }
 
 function renderScores() {
@@ -1072,18 +1153,20 @@ function renderScores() {
     const table = document.getElementById("scoreTable");
     table.innerHTML = "";
     const head = document.createElement("tr");
-    ["#", "Игрок", "Герой", "Бутылок", "Дата"].forEach(function(t) {
+    ["#", "Игрок", "Герой", "Бутылок"].forEach(function(t) {
         const th = document.createElement("th");
         th.textContent = t;
         head.appendChild(th);
     });
     table.appendChild(head);
 
-    const rows = loadScores().filter(function(e) { return scoreFilter === "all" || e.h === scoreFilter; }).slice(0, 10);
+    const source = boardOn() && remoteScores && !boardError ? remoteScores.slice() : loadScores();
+    source.sort(function(a, b) { return b.s - a.s || a.d - b.d; });
+    const rows = source.filter(function(e) { return scoreFilter === "all" || e.h === scoreFilter; }).slice(0, 10);
     if (!rows.length) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 5; td.className = "empty";
+        td.colSpan = 4; td.className = "empty";
         td.textContent = "Пока пусто — сыграй и поставь рекорд!";
         tr.appendChild(td);
         table.appendChild(tr);
@@ -1093,7 +1176,7 @@ function renderScores() {
     rows.forEach(function(e, i) {
         const tr = document.createElement("tr");
         if (e.d === lastScoreId) tr.className = "me";
-        [medals[i] || String(i + 1), e.n, heroById(e.h).name, String(e.s), new Date(e.d).toLocaleDateString("ru-RU")].forEach(function(t) {
+        [medals[i] || String(i + 1), e.n, heroById(e.h).name, String(e.s)].forEach(function(t) {
             const td = document.createElement("td");
             td.textContent = t;
             tr.appendChild(td);
@@ -1102,15 +1185,7 @@ function renderScores() {
     });
 }
 
-document.getElementById("scoresBtn").addEventListener("click", function() { showScreen("scores"); });
 document.getElementById("nameBtn").addEventListener("click", function() { askName(); refreshSettings(); });
-document.getElementById("clearScoresBtn").addEventListener("click", function() {
-    if (typeof confirm !== "function" || confirm("Очистить всю таблицу рекордов?")) {
-        saveScores([]);
-        lastScoreId = 0;
-        renderScores();
-    }
-});
 
 function chooseHero(h) {
     hero = h;
@@ -1133,10 +1208,10 @@ playBtn.addEventListener("click", function() {
     else showScreen("heroes");
 });
 newGameBtn.addEventListener("click", function() { showScreen("heroes"); });
+versusBtn.addEventListener("click", function() { showScreen("versus"); });
 document.getElementById("settingsBtn").addEventListener("click", function() { showScreen("settings"); });
-document.getElementById("aboutBtn").addEventListener("click", function() { showScreen("about"); });
 document.querySelectorAll("[data-back]").forEach(function(btn) {
-    btn.addEventListener("click", function() { showScreen("main"); });
+    btn.addEventListener("click", function() { showScreen(btn.dataset.back || "main"); });
 });
 soundBtn.addEventListener("click", function() {
     soundOn = !soundOn;
@@ -1303,6 +1378,8 @@ function draw() {
 }
 
 applyHero();
+renderScores();
+startBoard();
 restart();
 showMenu();
 (function() {
