@@ -116,6 +116,37 @@ button {
 #manualBox p { font-size: clamp(12px, 1.6vw, 16px); }
 #manualBox textarea { width: min(520px, 80vw); height: 3.4em; font-size: 12px; background: #171727; color: white; border: 2px solid lime; border-radius: 8px; padding: 6px; }
 
+/* Управление боссфайтом на телефоне */
+#touchCtl { display: none; }
+#touchCtl.on { display: block; }
+#touchCtl, #touchCtl * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+#joy {
+    position: absolute; left: 3%; bottom: 6%; z-index: 3;
+    width: min(24vw, 150px); height: min(24vw, 150px); border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12); border: 2px solid rgba(255, 255, 255, 0.35);
+}
+#joyKnob {
+    position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; margin: -21% 0 0 -21%;
+    border-radius: 50%; background: rgba(0, 255, 0, 0.5); pointer-events: none;
+}
+#atkBtn {
+    position: absolute; right: 3%; bottom: 6%; z-index: 3; margin: 0; padding: 0;
+    width: min(22vw, 130px); height: min(22vw, 130px); border-radius: 50%;
+    font-size: clamp(24px, 6vw, 48px); line-height: 1;
+    background: rgba(255, 80, 40, 0.55); color: white; border: 2px solid rgba(255, 255, 255, 0.5);
+}
+#atkBtn:active { background: rgba(255, 80, 40, 0.9); }
+#rotateHint { display: none; color: orange; font-weight: bold; margin: 6px; }
+@media (orientation: portrait) { #rotateHint.on { display: block; } }
+@media (pointer: coarse) {
+    #wrap { width: min(95vw, calc((100vh - 60px) * 1.6)); width: min(95vw, calc((100dvh - 60px) * 1.6)); }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+    h1 { display: none; }
+    body { padding: 4px; }
+    #stage { margin: 4px auto; }
+}
+
 /* Экранные кнопки: только на сенсорных устройствах */
 #pad { display: none; }
 @media (pointer: coarse) {
@@ -145,6 +176,11 @@ button {
 <div id="wrap">
     <canvas id="game" width="1200" height="750"></canvas>
 
+    <div id="touchCtl">
+        <div id="joy"><div id="joyKnob"></div></div>
+        <button id="atkBtn">⚔️</button>
+    </div>
+
     <div id="menu">
         <div class="screen active" id="screen-main">
             <h2 id="menuTitle"></h2>
@@ -171,7 +207,7 @@ button {
 
         <div class="screen" id="screen-duel">
             <h2>⚔️ Дуэль 1×1</h2>
-            <p>Двое за одной клавиатурой: игрок 1 — W A S D, игрок 2 — стрелки. Бутылка одна на двоих, кто врезался в стену — проиграл.</p>
+            <p>Двое за одной клавиатурой: игрок 1 — W A S D, удар F или пробел; игрок 2 — стрелки, удар Enter. Бутылки открывают нунчаки, побеждает тот, у кого останется здоровье.</p>
             <div id="duelPick"></div>
             <button class="menu-btn" id="duelStartBtn">⚔️ В бой!</button>
             <button class="menu-btn secondary" data-back="versus">⬅️ Назад</button>
@@ -225,6 +261,8 @@ button {
 </aside>
 </div>
 
+<p id="rotateHint">📱 Для боссфайта поверни телефон горизонтально</p>
+
 <div id="pad">
     <button class="up" data-dir="up">⬆️</button>
     <button class="left" data-dir="left">⬅️</button>
@@ -247,8 +285,8 @@ const heroes = [
         id: "ilya", name: "Илья", hp: 100,
         speedLabel: "Скорость Ильи",
         img: "./player.jpg", fastImg: "./player2.jpg",
-        sound: "./bottle.ogg", soundVolume: 0.2,
-        fastSound: "./bottle10.ogg", fastSoundVolume: 0.1,
+        sound: "./bottle.ogg", soundVolume: 0.1,
+        fastSound: "./bottle10.ogg", fastSoundVolume: 0.05,
         playRude: "НЕ ДАЙ ИЛЮХЕ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ИЛЬЕ ПРОИГРАТЬ!",
         overRude: "💥 ИЛЮХА РАЗЪЕБАЛСЯ!", overClean: "💥 ИЛЬЯ ПРОИГРАЛ!"
     },
@@ -256,8 +294,8 @@ const heroes = [
         id: "dimon", name: "Димон", hp: 120,
         title: "ДИМОН СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Димона",
         img: "./dimon.jpg", fastImg: "./dimon2.jpg",
-        sound: "./dimon_bottle.ogg", soundVolume: 0.2,
-        fastSound: "./dimon_bottle10.ogg", fastSoundVolume: 0.1,
+        sound: "./dimon_bottle.ogg", soundVolume: 0.1,
+        fastSound: "./dimon_bottle10.ogg", fastSoundVolume: 0.05,
         playRude: "НЕ ДАЙ ДИМОНУ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ДИМОНУ ПРОИГРАТЬ!",
         overRude: "💥 ДИМОН РАЗЪЕБАЛСЯ!", overClean: "💥 ДИМОН ПРОИГРАЛ!"
     },
@@ -265,8 +303,8 @@ const heroes = [
         id: "vlad", name: "Влад", hp: 90,
         title: "ВЛАД СОБИРАЕТ БУТЫЛКИ", speedLabel: "Скорость Влада",
         img: "./vlad.jpg", fastImg: "./vlad2.jpg",
-        sound: "./vlad_bottle.ogg", soundVolume: 0.2,
-        fastSound: "./vlad_bottle10.ogg", fastSoundVolume: 0.1,
+        sound: "./vlad_bottle.ogg", soundVolume: 0.1,
+        fastSound: "./vlad_bottle10.ogg", fastSoundVolume: 0.05,
         playRude: "НЕ ДАЙ ВЛАДУ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ВЛАДУ ПРОИГРАТЬ!",
         overRude: "💥 ВЛАД РАЗЪЕБАЛСЯ!", overClean: "💥 ВЛАД ПРОИГРАЛ!"
     },
@@ -274,8 +312,8 @@ const heroes = [
         id: "sanya", name: "Саня", hp: 110,
         speedLabel: "Скорость Сани",
         img: "./sanya.jpg", fastImg: "./sanya2.jpg",
-        sound: "./sanya_bottle.ogg", soundVolume: 0.2,
-        fastSound: "./sanya_bottle10.ogg", fastSoundVolume: 0.1,
+        sound: "./sanya_bottle.ogg", soundVolume: 0.1,
+        fastSound: "./sanya_bottle10.ogg", fastSoundVolume: 0.05,
         playRude: "НЕ ДАЙ САНЕ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ САНЕ ПРОИГРАТЬ!",
         overRude: "💥 САНЯ РАЗЪЕБАЛСЯ!", overClean: "💥 САНЯ ПРОИГРАЛ!"
     }
@@ -317,8 +355,8 @@ const NET_PREFIX = "ilya-duel-";
 let netHero = hero;
 let duelPick = [heroes[0], heroes[1] || heroes[0]];
 const duelMaps = [
-    { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right" },
-    { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }
+    { KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right", KeyF: "atk", Space: "atk" },
+    { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "atk", NumpadEnter: "atk", Slash: "atk" }
 ];
 
 // Рекорд хранится в браузере (если localStorage недоступен — просто не сохраняем)
@@ -341,7 +379,7 @@ function updateMessage() {
     }
     if (mode === "duel") {
         if (!gameOver) {
-            message.textContent = net.role ? "⚔️ ОНЛАЙН-ДУЭЛЬ! Управление: стрелки или W A S D" : "⚔️ ДУЭЛЬ! Игрок 1 — W A S D, игрок 2 — стрелки";
+            message.textContent = net.role ? "⚔️ ОНЛАЙН-ДУЭЛЬ! Двигайся стрелками или W A S D, бей пробелом или Enter" : "⚔️ ДУЭЛЬ! Игрок 1: W A S D + F, игрок 2: стрелки + Enter";
         } else if (duel.winner === "draw") {
             message.textContent = "🤝 НИЧЬЯ!";
         } else {
@@ -582,19 +620,48 @@ function restartAny() {
     startDuel();
 }
 
+// настройки дуэли
+const DUEL_SPEED = 230;      // скорость героев, px/сек
+const DUEL_DMG_MULT = 0.6;   // урон нунчаков в дуэли (в боссфайте он больше)
+const DUEL_REACH = 40;       // запас дальности удара (радиус противника)
+const DUEL_KNOCK = 70;       // отбрасывание при попадании
+
+function duelTier(score) { let t = 0; NUNCHAKU.forEach(function(n, i) { if (score >= n.need) t = i; }); return t; }
+function duelCenter(q) { return { x: q.x + playerSize / 2, y: q.y + playerSize / 2 }; }
+
+// бутылка чаще появляется рядом с тем, у кого их меньше (чем больше разрыв, тем чаще)
+function placeNearLagging() {
+    const a = duel.p[0], b = duel.p[1], diff = Math.abs(a.score - b.score);
+    if (!diff || Math.random() > Math.min(0.95, 0.6 + 0.1 * diff)) return false;
+    const lag = a.score < b.score ? a : b, c = duelCenter(lag);
+    for (let i = 0; i < 40; i++) {
+        const ang = Math.random() * Math.PI * 2, dist = 150 + Math.random() * 230;
+        const bx = Math.round((c.x + Math.cos(ang) * dist - bottleSize / 2) / 20) * 20;
+        const by = Math.round((c.y + Math.sin(ang) * dist - bottleSize / 2) / 20) * 20;
+        if (bx < 20 || by < 20 || bx > canvas.width - bottleSize - 20 || by > canvas.height - bottleSize - 20) continue;
+        if (duel.p.some(function(o) { return o.x < bx + bottleSize && o.x + playerSize > bx && o.y < by + bottleSize && o.y + playerSize > by; })) continue;
+        bottleX = bx; bottleY = by;
+        return true;
+    }
+    return false;
+}
+
 function startDuel(remote) {
     mode = "duel";
+    syncControls();
     clearInterval(timer);
     const W = canvas.width, H = canvas.height;
     duel.p = [0, 1].map(function(i) {
+        const hp = duelPick[i].hp || 100;
         return {
             hero: duelPick[i], x: i ? W - 100 - playerSize : 100, y: (H - playerSize) / 2,
-            speed: calcSpeed(0), direction: i ? "left" : "right", score: 0, redness: 0, keys: {}
+            hp: hp, maxHp: hp, score: 0, tier: 0, keys: {}, inv: 0, cd: 0, swing: 0, flash: 0
         };
     });
     if (net.role === "host" && net.guestKeys) duel.p[1].keys = Object.assign({}, net.guestKeys);
     duel.count = 90; // обратный отсчёт 3-2-1
     duel.winner = null;
+    duel.banner = { until: 0, text: "" };
     gameOver = false; started = true;
     bottleX = W / 2 - bottleSize / 2; bottleY = H / 2 - bottleSize / 2;
     setDuelHud();
@@ -607,49 +674,61 @@ function startDuel(remote) {
 
 function setDuelHud() {
     const a = duel.p[0], b = duel.p[1];
-    document.getElementById("score").textContent = "Игрок 1 (" + a.hero.name + "): " + a.score + "   |   Игрок 2 (" + b.hero.name + "): " + b.score;
-    document.getElementById("speed").textContent = "Скорость: " + a.speed.toFixed(1) + " — " + b.speed.toFixed(1);
+    const line = function(q, i) { return "Игрок " + (i + 1) + " (" + q.hero.name + "): ❤ " + Math.ceil(q.hp) + "/" + q.maxHp + " · 🍾 " + q.score; };
+    document.getElementById("score").textContent = line(a, 0) + "   |   " + line(b, 1);
+    document.getElementById("speed").textContent = "Нунчаки: " + NUNCHAKU[a.tier].name + " — " + NUNCHAKU[b.tier].name;
     document.getElementById("best").textContent = "Побед в дуэли: " + duelWins[0] + " : " + duelWins[1];
 }
 
 function updateDuel() {
     if (gameOver || inMenu) return;
-    duel.p.forEach(function(q) {
-        if (q.keys.up) q.direction = "up";
-        else if (q.keys.down) q.direction = "down";
-        else if (q.keys.left) q.direction = "left";
-        else if (q.keys.right) q.direction = "right";
-    });
+    const dt = 0.03, W = canvas.width, H = canvas.height, a = duel.p[0], b = duel.p[1];
     if (duel.count > 0) { duel.count--; draw(); sendState(); return; }
 
-    const dead = [false, false];
-    duel.p.forEach(function(q, i) {
-        q.px = q.x; q.py = q.y;
-        let nx = q.x, ny = q.y;
-        if (q.direction === "up") ny -= q.speed;
-        if (q.direction === "down") ny += q.speed;
-        if (q.direction === "left") nx -= q.speed;
-        if (q.direction === "right") nx += q.speed;
-        if (nx < 0 || ny < 0 || nx + playerSize > canvas.width || ny + playerSize > canvas.height) {
-            dead[i] = true;
-            q.x = Math.max(0, Math.min(canvas.width - playerSize, nx));
-            q.y = Math.max(0, Math.min(canvas.height - playerSize, ny));
-        } else { q.x = nx; q.y = ny; }
-    });
-    if (dead[0] || dead[1]) { endDuel(dead); return; }
-
-    for (let i = 0; i < 2; i++) {
-        const q = duel.p[i];
-        if (Math.min(q.px, q.x) < bottleX + bottleSize && Math.max(q.px, q.x) + playerSize > bottleX &&
-            Math.min(q.py, q.y) < bottleY + bottleSize && Math.max(q.py, q.y) + playerSize > bottleY) {
-            q.score++;
-            const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
-            if (soundOn) { sound.currentTime = 0; sound.play().catch(function() {}); }
-            q.speed = calcSpeed(q.score);
-            q.redness = q.speed >= 12 ? 0 : Math.min(q.score * 0.06, 0.7);
-            newBottle();
-            break;
+    duel.p.forEach(function(q) {
+        const vx = (q.keys.right ? 1 : 0) - (q.keys.left ? 1 : 0), vy = (q.keys.down ? 1 : 0) - (q.keys.up ? 1 : 0);
+        if (vx || vy) {
+            const l = Math.hypot(vx, vy);
+            q.x += vx / l * DUEL_SPEED * dt; q.y += vy / l * DUEL_SPEED * dt;
         }
+        q.x = clamp(q.x, 0, W - playerSize); q.y = clamp(q.y, 0, H - playerSize);
+        q.inv = Math.max(0, q.inv - dt); q.cd = Math.max(0, q.cd - dt);
+        q.swing = Math.max(0, q.swing - dt); q.flash = Math.max(0, q.flash - dt);
+    });
+
+    // удары нунчаками: оба считаются в одном шаге, поэтому всё честно
+    const hits = [];
+    duel.p.forEach(function(q, i) {
+        if (!q.keys.atk || q.cd > 0) return;
+        const n = NUNCHAKU[q.tier], o = duel.p[1 - i], qc = duelCenter(q), oc = duelCenter(o);
+        q.cd = n.cd; q.swing = 0.28;
+        if (o.inv <= 0 && Math.hypot(qc.x - oc.x, qc.y - oc.y) <= n.range + DUEL_REACH) {
+            hits.push([i, Math.max(1, Math.round(n.dmg * DUEL_DMG_MULT))]);
+        }
+    });
+    hits.forEach(function(h) {
+        const q = duel.p[h[0]], o = duel.p[1 - h[0]], qc = duelCenter(q), oc = duelCenter(o);
+        o.hp = Math.max(0, o.hp - h[1]); o.inv = 0.25; o.flash = 0.15;
+        const l = Math.hypot(oc.x - qc.x, oc.y - qc.y) || 1;
+        o.x = clamp(o.x + (oc.x - qc.x) / l * DUEL_KNOCK, 0, W - playerSize);
+        o.y = clamp(o.y + (oc.y - qc.y) / l * DUEL_KNOCK, 0, H - playerSize);
+    });
+    if (a.hp <= 0 || b.hp <= 0) { endDuel([a.hp <= 0, b.hp <= 0]); return; }
+
+    // бутылка; если дотянулись оба сразу, достаётся тому, у кого их меньше
+    const got = duel.p.map(function(q) {
+        return q.x < bottleX + bottleSize && q.x + playerSize > bottleX && q.y < bottleY + bottleSize && q.y + playerSize > bottleY;
+    });
+    if (got[0] || got[1]) {
+        const q = got[0] && got[1] ? (a.score <= b.score ? a : b) : (got[0] ? a : b);
+        q.score++;
+        if (soundOn) {
+            const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
+            sound.currentTime = 0; sound.play().catch(function() {});
+        }
+        const t = duelTier(q.score);
+        if (t > q.tier) { q.tier = t; duel.banner = { until: Date.now() + 2200, text: "🔓 " + q.hero.name + ": " + NUNCHAKU[t].name }; }
+        newBottle();
     }
     setDuelHud();
     draw();
@@ -693,19 +772,55 @@ function drawHero(h, px, py, spd, red) {
 }
 
 function drawDuel() {
+    const W = canvas.width, H = canvas.height;
     ctx.font = bottleSize + "px Arial";
     ctx.fillText("🍾", bottleX, bottleY + bottleSize * 0.83);
     duel.p.forEach(function(q, i) {
-        drawHero(q.hero, q.x, q.y, q.speed, q.redness);
+        const f = q.hp / q.maxHp, st = f > 0.65 ? 0 : f > 0.35 ? 1 : f > 0.15 ? 2 : 3;
+        let spd = st === 3 ? 12 : 5, red = st === 1 ? 0.3 : st === 2 ? 0.55 : 0;
+        if (q.flash > 0) { spd = 5; red = Math.max(red, 0.7); }
+        drawHero(q.hero, q.x, q.y, spd, red);
+
+        // нунчаки
+        const n = NUNCHAKU[q.tier], c = duelCenter(q), R = n.range * 0.8;
+        if (q.swing > 0) {
+            const ang = (1 - q.swing / 0.28) * Math.PI * 2;
+            ctx.strokeStyle = n.color; ctx.globalAlpha = 0.25; ctx.lineWidth = 10;
+            ctx.beginPath(); ctx.arc(c.x, c.y, R, ang - 1.6, ang); ctx.stroke(); ctx.globalAlpha = 1;
+            for (let k = 0; k < 2; k++) {
+                const a = ang + k * Math.PI, tx = c.x + Math.cos(a) * R, ty = c.y + Math.sin(a) * R;
+                ctx.strokeStyle = "#aaaaaa"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(tx, ty); ctx.stroke();
+                ctx.strokeStyle = n.color; ctx.lineWidth = 9; ctx.beginPath();
+                ctx.moveTo(tx, ty); ctx.lineTo(tx - Math.sin(a) * 38, ty + Math.cos(a) * 38); ctx.stroke();
+            }
+        } else {
+            ctx.strokeStyle = n.color; ctx.lineWidth = 8; ctx.beginPath();
+            ctx.moveTo(q.x + playerSize + 4, q.y + 20); ctx.lineTo(q.x + playerSize + 4, q.y + 60); ctx.stroke();
+        }
+
+        // подпись над героем
         ctx.fillStyle = i ? "#ff9d9d" : "#9dd1ff";
-        ctx.font = "bold 22px Arial";
-        ctx.fillText(net.role ? (i === (net.role === "host" ? 0 : 1) ? "Ты" : "Соперник") : "Игрок " + (i + 1), q.x, Math.max(22, q.y - 8));
+        ctx.font = "bold " + fs(20);
+        ctx.fillText(net.role ? (i === (net.role === "host" ? 0 : 1) ? "Ты" : "Соперник") : "Игрок " + (i + 1), q.x, Math.max(24, q.y - 8));
+
+        // здоровье и нунчаки
+        const bx = i ? W - 20 - 360 : 20;
+        drawBar(bx, 14, 360, 20, q.hp / q.maxHp, ["#4ad88a", "#e6d23a", "#f08a2a", "#e03030"][st], [0.65, 0.35, 0.15]);
+        ctx.fillStyle = "white"; ctx.font = "bold " + fs(16);
+        ctx.fillText(q.hero.name + "  ❤ " + Math.ceil(q.hp) + "/" + q.maxHp, bx, 54);
+        ctx.fillText("🍾 " + q.score + " · " + n.name, bx, 54 + Math.round(22 * (touchUI ? 1.3 : 1)));
     });
+
+    if (duel.banner && Date.now() < duel.banner.until) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(W / 2 - 300, 100, 600, 46);
+        ctx.fillStyle = "#ffd54a"; ctx.font = "bold " + fs(24); ctx.textAlign = "center";
+        ctx.fillText(duel.banner.text, W / 2, 132); ctx.textAlign = "start";
+    }
     if (gameOver) {
         const head = duel.winner === "draw" ? "🤝 НИЧЬЯ!" : "🏆 Победил " + duel.p[duel.winner].hero.name + "!";
         drawBanner([head, "Enter — реванш  |  Побед: " + duelWins[0] + " : " + duelWins[1]]);
     } else if (duel.count > 0) {
-        drawBanner([String(Math.ceil(duel.count / 30)), net.role ? "Управление: стрелки или W A S D" : "Игрок 1: W A S D   |   Игрок 2: стрелки"]);
+        drawBanner([String(Math.ceil(duel.count / 30)), net.role ? "Двигайся стрелками или W A S D, бей пробелом или Enter" : "Игрок 1: W A S D + F   |   Игрок 2: стрелки + Enter"]);
     }
 }
 
@@ -750,19 +865,22 @@ function sendState() {
     if (net.role !== "host") return;
     netSend({
         t: "s", c: duel.count, g: gameOver, w: duel.winner, wn: duelWins, b: [bottleX, bottleY],
-        p: duel.p.map(function(q) { return [q.x, q.y, q.speed, q.score, q.redness]; })
+        p: duel.p.map(function(q) { return [q.x, q.y, q.hp, q.score, q.swing, q.inv, q.flash]; })
     });
 }
 
 function applyState(m) {
     m.p.forEach(function(a, i) {
-        const q = duel.p[i];
-        const prev = q.score;
-        q.x = a[0]; q.y = a[1]; q.speed = a[2]; q.score = a[3]; q.redness = a[4];
-        if (a[3] > prev && soundOn) {
-            const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
-            sound.currentTime = 0;
-            sound.play().catch(function() {});
+        const q = duel.p[i], prev = q.score;
+        q.x = a[0]; q.y = a[1]; q.hp = a[2]; q.score = a[3]; q.swing = a[4]; q.inv = a[5]; q.flash = a[6];
+        if (a[3] > prev) {
+            if (soundOn) {
+                const sound = q.score >= 10 ? q.hero.specialSound : q.hero.normalSound;
+                sound.currentTime = 0;
+                sound.play().catch(function() {});
+            }
+            const t = duelTier(q.score);
+            if (t > q.tier) { q.tier = t; duel.banner = { until: Date.now() + 2200, text: "🔓 " + q.hero.name + ": " + NUNCHAKU[t].name }; }
         }
     });
     bottleX = m.b[0]; bottleY = m.b[1];
@@ -782,7 +900,7 @@ function onNetData(m) {
             hideMenu();
             startDuel();
         } else if (m.t === "k" && m.k && duel.p[1]) {
-            net.guestKeys = { up: !!m.k.up, down: !!m.k.down, left: !!m.k.left, right: !!m.k.right };
+            net.guestKeys = { up: !!m.k.up, down: !!m.k.down, left: !!m.k.left, right: !!m.k.right, atk: !!m.k.atk };
             duel.p[1].keys = Object.assign({}, net.guestKeys);
         } else if (m.t === "r" && gameOver) {
             hideMenu();
@@ -1215,6 +1333,54 @@ function renderScores() {
 
 document.getElementById("nameBtn").addEventListener("click", function() { askName(); refreshSettings(); });
 
+// ---------- Управление боссфайтом на телефоне: стик + кнопка удара ----------
+const touchUI = (typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches) ||
+                (typeof window !== "undefined" && "ontouchstart" in window);
+function syncControls() {
+    const boss = mode === "boss" && touchUI;
+    document.getElementById("touchCtl").classList.toggle("on", boss);
+    document.getElementById("rotateHint").classList.toggle("on", boss);
+    document.getElementById("pad").style.display = mode === "solo" ? "" : "none";
+}
+(function() {
+    const joy = document.getElementById("joy"), knob = document.getElementById("joyKnob"), atk = document.getElementById("atkBtn");
+    let joyId = null;
+    function joyMove(e) {
+        const r = joy.getBoundingClientRect(), max = r.width / 2;
+        let dx = e.clientX - (r.left + max), dy = e.clientY - (r.top + max);
+        const l = Math.hypot(dx, dy);
+        if (l > max) { dx = dx / l * max; dy = dy / l * max; }
+        knob.style.transform = "translate(" + dx + "px," + dy + "px)";
+        if (!bs) return;
+        const dead = max * 0.3;
+        bs.keys.left = dx < -dead; bs.keys.right = dx > dead; bs.keys.up = dy < -dead; bs.keys.down = dy > dead;
+    }
+    function joyEnd(e) {
+        if (e.pointerId !== joyId) return;
+        joyId = null;
+        knob.style.transform = "";
+        if (bs) { bs.keys.left = bs.keys.right = bs.keys.up = bs.keys.down = false; }
+    }
+    joy.addEventListener("pointerdown", function(e) {
+        e.preventDefault();
+        joyId = e.pointerId;
+        try { joy.setPointerCapture(e.pointerId); } catch (err) {}
+        joyMove(e);
+    });
+    joy.addEventListener("pointermove", function(e) { if (e.pointerId === joyId) joyMove(e); });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function(t) { joy.addEventListener(t, joyEnd); });
+
+    function atkOff() { if (bs) bs.keys.atk = false; }
+    atk.addEventListener("pointerdown", function(e) {
+        e.preventDefault();
+        try { atk.setPointerCapture(e.pointerId); } catch (err) {}
+        if (gameOver) { restartAny(); return; }
+        if (bs) bs.keys.atk = true;
+    });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function(t) { atk.addEventListener(t, atkOff); });
+})();
+const fs = function(n) { return Math.round(n * (touchUI ? 1.45 : 1)) + "px Arial"; };  // шрифты крупнее на телефоне
+
 // ---------- Боссфайт ----------
 const BOSS = {
     name: "Николя", img: "./nikolya.jpg", hp: 1800, size: 220,
@@ -1241,13 +1407,15 @@ const bossImg = new Image();
 bossImg.src = BOSS.img;
 bossImg.onload = function() { draw(); };
 const bossSounds = {};
-function makeBossSound(src) { const a = new Audio(src); a.volume = 0.35; return a; }
+const BOSS_VOLUME = 0.35;       // атаки босса
+const BOSS_HURT_VOLUME = 0.15;  // звуки боли при ударе нунчаками (тише)
+function makeBossSound(src, vol) { const a = new Audio(src); a.volume = vol || BOSS_VOLUME; return a; }
 bossSounds.pants = makeBossSound(BOSS_SOUND_FILES.pants);
 bossSounds.bottle = makeBossSound(BOSS_SOUND_FILES.bottle);
 bossSounds.burp = makeBossSound(BOSS_SOUND_FILES.burp);
 bossSounds.stink = makeBossSound(BOSS_SOUND_FILES.stink);
 bossSounds.shawarma = makeBossSound(BOSS_SOUND_FILES.shawarma);
-bossSounds.hurt = BOSS_SOUND_FILES.hurt.map(makeBossSound);
+bossSounds.hurt = BOSS_SOUND_FILES.hurt.map(function(f) { return makeBossSound(f, BOSS_HURT_VOLUME); });
 function playBoss(name) {
     if (!soundOn) return;
     let a = bossSounds[name];
@@ -1268,6 +1436,7 @@ function bossCenter() { return { x: bs.boss.x + BOSS.size / 2, y: bs.boss.y + BO
 
 function startBoss(h) {
     mode = "boss";
+    syncControls();
     clearInterval(timer);
     const W = canvas.width, H = canvas.height;
     bs = {
@@ -1301,8 +1470,16 @@ function hurtHero(d, soft) {
     if (bs.hp <= 0) endBoss(false);
 }
 
+// когда герой бьёт босса, его собственные звуки (подбор бутылки) обрываются и не включаются
+function silenceHero() {
+    [bs.hero.normalSound, bs.hero.specialSound].forEach(function(a) {
+        try { a.pause(); a.currentTime = 0; } catch (e) {}
+    });
+}
+
 function damageBoss(d) {
     const B = bs.boss;
+    silenceHero();
     B.hp = Math.max(0, B.hp - d);
     B.flash = 0.15; B.shake = 0.25;
     if (B.hurtCd <= 0) { playBoss("hurt"); B.hurtCd = 0.35; }
@@ -1396,7 +1573,7 @@ function updateBoss() {
     // бутылка
     if (bs.x < bottleX + bottleSize && bs.x + playerSize > bottleX && bs.y < bottleY + bottleSize && bs.y + playerSize > bottleY) {
         bs.bottles++;
-        if (soundOn) {
+        if (soundOn && bs.swing <= 0) {
             const snd = bs.bottles >= 10 ? bs.hero.specialSound : bs.hero.normalSound;
             snd.currentTime = 0; snd.play().catch(function() {});
         }
@@ -1567,19 +1744,20 @@ function drawBoss() {
     // полоски здоровья
     const bw = 760, bxp = (W - bw) / 2;
     drawBar(bxp, 14, bw, 20, B.hp / BOSS.hp, ["#7ad84a", "#e6d23a", "#f08a2a", "#e03030"][B.stage], [0.7, 0.4, 0.15]);
-    ctx.fillStyle = "white"; ctx.font = "bold 18px Arial"; ctx.textAlign = "center";
+    ctx.fillStyle = "white"; ctx.font = "bold " + fs(18); ctx.textAlign = "center";
     ctx.fillText(BOSS.name.toUpperCase() + "  ·  стадия " + (B.stage + 1) + ": " + BOSS.stageNames[B.stage], W / 2, 52);
     ctx.textAlign = "start";
-    drawBar(20, H - 40, 320, 20, bs.hp / bs.maxHp, ["#4ad88a", "#e6d23a", "#f08a2a", "#e03030"][heroStage()], [0.65, 0.35, 0.15]);
-    ctx.fillStyle = "white"; ctx.font = "bold 16px Arial";
-    ctx.fillText(bs.hero.name + "  " + Math.ceil(bs.hp) + "/" + bs.maxHp + "  ·  стадия " + (heroStage() + 1), 24, H - 48);
+    drawBar(W / 2 - 160, H - 40, 320, 20, bs.hp / bs.maxHp, ["#4ad88a", "#e6d23a", "#f08a2a", "#e03030"][heroStage()], [0.65, 0.35, 0.15]);
+    ctx.fillStyle = "white"; ctx.font = "bold " + fs(16); ctx.textAlign = "center";
+    ctx.fillText(bs.hero.name + "  " + Math.ceil(bs.hp) + "/" + bs.maxHp + "  ·  стадия " + (heroStage() + 1), W / 2, H - 48);
     const nextN = NUNCHAKU[bs.tier + 1];
-    ctx.fillText("🍾 " + bs.bottles + (nextN ? " → " + nextN.name + " при " + nextN.need : "  ·  макс. нунчаки"), 24, H - 10);
+    ctx.fillText("🍾 " + bs.bottles + (nextN ? " → " + nextN.name + " при " + nextN.need : "  ·  макс. нунчаки"), W / 2, H - 10);
+    ctx.textAlign = "start";
 
     // надпись о событии
     if (bs.banner.t > 0) {
         ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(W / 2 - 330, 70, 660, 46);
-        ctx.fillStyle = "#ffd54a"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
+        ctx.fillStyle = "#ffd54a"; ctx.font = "bold " + fs(24); ctx.textAlign = "center";
         ctx.fillText(bs.banner.text, W / 2, 102); ctx.textAlign = "start";
     }
     if (bs.over) {
@@ -1627,6 +1805,7 @@ document.getElementById("menuBtn").addEventListener("click", function() {
 });
 
 function newBottle() {
+    if (mode === "duel" && duel.p.length === 2 && placeNearLagging()) return;
     const occupied = mode === "duel" ? duel.p : mode === "boss" ? [{ x: bs.x, y: bs.y }] : [{ x: x, y: y }];
     let attempts = 0;
     do {
@@ -1646,6 +1825,7 @@ function newBottle() {
 
 function restart() {
     mode = "solo";
+    syncControls();
     clearInterval(timer);
     x = 100; y = 100;
     score = 0; speed = 5; direction = "right"; redness = 0;
