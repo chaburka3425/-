@@ -116,6 +116,19 @@ button {
 #manualBox p { font-size: clamp(12px, 1.6vw, 16px); }
 #manualBox textarea { width: min(520px, 80vw); height: 3.4em; font-size: 12px; background: #171727; color: white; border: 2px solid lime; border-radius: 8px; padding: 6px; }
 
+/* Экран конца боссфайта */
+#endScreen {
+    position: absolute; inset: 0; z-index: 4;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(8px, 2vw, 16px); padding: 12px; text-align: center; line-height: 1.3;
+    background: rgba(10, 12, 22, 0.88);
+}
+#endScreen.hidden { display: none; }
+#endScreen h2 { margin: 0; font-size: clamp(26px, 6vw, 56px); }
+#endScreen.win h2 { color: lime; }
+#endScreen.lose h2 { color: #ff5a5a; }
+#endScreen p { margin: 0; font-size: clamp(13px, 2.2vw, 22px); }
+
 /* Управление боссфайтом на телефоне */
 #touchCtl { display: none; }
 #touchCtl.on { display: block; }
@@ -179,6 +192,13 @@ button {
     <div id="touchCtl">
         <div id="joy"><div id="joyKnob"></div></div>
         <button id="atkBtn">⚔️</button>
+    </div>
+
+    <div id="endScreen" class="hidden">
+        <h2 id="endTitle"></h2>
+        <p id="endText"></p>
+        <button class="menu-btn" id="endAgainBtn"></button>
+        <button class="menu-btn secondary" id="endMenuBtn">☰ В меню</button>
     </div>
 
     <div id="menu">
@@ -316,6 +336,15 @@ const heroes = [
         fastSound: "./sanya_bottle10.ogg", fastSoundVolume: 0.05,
         playRude: "НЕ ДАЙ САНЕ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ САНЕ ПРОИГРАТЬ!",
         overRude: "💥 САНЯ РАЗЪЕБАЛСЯ!", overClean: "💥 САНЯ ПРОИГРАЛ!"
+    },
+    {
+        id: "leha", name: "Леха", hp: 105,
+        speedLabel: "Скорость Лехи",
+        img: "./leha.jpg", fastImg: "./leha2.jpg",
+        sound: "./leha_bottle.ogg", soundVolume: 0.1,
+        fastSound: "./leha_bottle10.ogg", fastSoundVolume: 0.05,
+        playRude: "НЕ ДАЙ ЛЕХЕ РАЗЪЕБАТЬСЯ 💀", playClean: "НЕ ДАЙ ЛЕХЕ ПРОИГРАТЬ!",
+        overRude: "💥 ЛЕХА РАЗЪЕБАЛСЯ!", overClean: "💥 ЛЕХА ПРОИГРАЛ!"
     }
 ];
 
@@ -558,6 +587,7 @@ function showScreen(name) {
 }
 
 function showMenu() {
+    hideEnd();
     inMenu = true;
     keys = {};
     duel.p.forEach(function(q) { q.keys = {}; });
@@ -649,6 +679,7 @@ function placeNearLagging() {
 function startDuel(remote) {
     mode = "duel";
     syncControls();
+    hideEnd();
     clearInterval(timer);
     const W = canvas.width, H = canvas.height;
     duel.p = [0, 1].map(function(i) {
@@ -1437,6 +1468,7 @@ function bossCenter() { return { x: bs.boss.x + BOSS.size / 2, y: bs.boss.y + BO
 function startBoss(h) {
     mode = "boss";
     syncControls();
+    hideEnd();
     clearInterval(timer);
     const W = canvas.width, H = canvas.height;
     bs = {
@@ -1486,6 +1518,22 @@ function damageBoss(d) {
     if (B.hp <= 0) endBoss(true);
 }
 
+const endEl = document.getElementById("endScreen");
+function hideEnd() { endEl.classList.add("hidden"); }
+function showEnd() {
+    const win = bs.win, secs = Math.round(bs.t), n = NUNCHAKU[bs.tier].name;
+    endEl.classList.remove("hidden");
+    endEl.classList.toggle("win", win);
+    endEl.classList.toggle("lose", !win);
+    document.getElementById("endTitle").textContent = win ? "🏆 ПОБЕДА!" : "💥 ПОРАЖЕНИЕ";
+    document.getElementById("endText").textContent = (win ? bs.hero.name + " победил: " + BOSS.name : BOSS.name + " оказался сильнее") +
+        "\nБутылок: " + bs.bottles + "  ·  " + n + "  ·  Время боя: " + Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+    document.getElementById("endText").style.whiteSpace = "pre-line";
+    document.getElementById("endAgainBtn").textContent = win ? "🔁 Снова победить босса" : "🔄 Новая попытка";
+}
+document.getElementById("endAgainBtn").addEventListener("click", function() { hideEnd(); if (bs) startBoss(bs.hero); });
+document.getElementById("endMenuBtn").addEventListener("click", function() { hideEnd(); showMenu(); });
+
 function endBoss(win) {
     bs.over = true; bs.win = win;
     gameOver = true;
@@ -1493,6 +1541,9 @@ function endBoss(win) {
     setBossHud();
     updateMessage();
     draw();
+    // даём секунду увидеть последний удар, потом показываем экран с выбором
+    const fight = bs;
+    setTimeout(function() { if (bs === fight && bs.over && mode === "boss" && !inMenu) showEnd(); }, 700);
 }
 
 function swingNunchaku() {
@@ -1826,6 +1877,7 @@ function newBottle() {
 function restart() {
     mode = "solo";
     syncControls();
+    hideEnd();
     clearInterval(timer);
     x = 100; y = 100;
     score = 0; speed = 5; direction = "right"; redness = 0;
@@ -1966,6 +2018,7 @@ function draw() {
     }
 }
 
+hideEnd();
 applyHero();
 renderScores();
 startBoard();
